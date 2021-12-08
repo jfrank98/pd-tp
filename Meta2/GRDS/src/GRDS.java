@@ -1,5 +1,8 @@
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.net.*;
+import java.util.ArrayList;
 
 public class GRDS {
 
@@ -8,19 +11,25 @@ public class GRDS {
     private static final String CLIENT_REQUEST = "GET_ADDR_PORT_TCP";
     private int serverCount = 0;
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
         InetAddress AddrGRDS;
         int listeningPort;
         DatagramSocket socket = null;
         DatagramPacket packet;
         String response;
-
+        ArrayList<Servidor> servers = new ArrayList<>();
+        ByteArrayOutputStream baos;
+        ObjectOutputStream oos;
+        int server_index = 0;
+        Servidor empty = new Servidor();
         if(args.length != 1){
             System.out.println("Sintaxe: java GRDS listeningPort");
             return;
         }
 
         try{
+            baos = new ByteArrayOutputStream();
+            oos = new ObjectOutputStream(baos);
 
             listeningPort = Integer.parseInt(args[0]);
             System.out.println("Listening on port " + listeningPort);
@@ -35,10 +44,23 @@ public class GRDS {
                 if (response.equals(SERVER_REQUEST)) {
                     System.out.println("Sent message to server.");
                     packet.setData("msg received server".getBytes(), 0, "msg received server".length());
+                    servers.add(new Servidor(packet.getAddress(), packet.getPort()));
                 }
                 else if (response.equals(CLIENT_REQUEST)){
                     System.out.println("Sent message to client.");
-                    packet.setData("msg received client".getBytes(), 0, "msg received client".length());
+                    if (servers.size() > 0) {
+                        if (server_index == servers.size()){
+                            server_index = 0;
+                        }
+                        oos.writeUnshared(servers.get(server_index));
+                        byte[] data = baos.toByteArray();
+                        packet.setData(data, 0, data.length);
+                    }
+                    else {
+                        oos.writeUnshared(empty);
+                        byte[] data = baos.toByteArray();
+                        packet.setData(data, 0, data.length);
+                    }
                 }
 
                 InetAddress clientAddress = packet.getAddress();

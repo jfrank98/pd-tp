@@ -1,9 +1,9 @@
-import java.io.IOException;
+import java.io.*;
 import java.net.*;
 import java.util.ArrayList;
 import java.util.Scanner;
 
-public class Main {
+public class Cliente {
     public static final int MAX_SIZE = 1024;
     public static final String ADDR_PORT_REQUEST = "GET_ADDR_PORT_TCP";
 
@@ -14,7 +14,9 @@ public class Main {
         DatagramSocket SocketGRDS = null;
         DatagramPacket packet;
         String responseGRDS;
-
+        Servidor server;
+        ByteArrayInputStream bais;
+        ObjectInputStream ois;
         if (args.length != 2){
             System.out.println("Sintaxe: java Cliente serverAddress serverUdpPort");
             return;
@@ -31,12 +33,13 @@ public class Main {
             packet = new DatagramPacket(new byte[MAX_SIZE], MAX_SIZE, AddrGRDS, PortGRDS);
             SocketGRDS.receive(packet);
 
-            responseGRDS = new String(packet.getData(), 0, packet.getLength());
-            //response = packet.getData().toString();
-            String [] addr_port_GRDS = responseGRDS.split(",");
-            for (String s : addr_port_GRDS) {
-                System.out.println(s);
-            }
+            bais = new ByteArrayInputStream(packet.getData(), 0, packet.getLength());
+            ois = new ObjectInputStream(bais);
+
+            server = (Servidor) ois.readObject();
+
+            System.out.println("server hostname: " + server.getServerAddress().toString());
+            System.out.println("server port: " + server.getListeningPort());
 
         }catch(UnknownHostException e){
             System.out.println("Destino desconhecido:\n\t"+e);
@@ -48,7 +51,9 @@ public class Main {
             System.out.println("Ocorreu um erro ao nivel do socket UDP:\n\t"+e);
         }catch(IOException e){
             System.out.println("Ocorreu um erro no acesso ao socket:\n\t"+e);
-        }finally{
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        } finally{
             if(SocketGRDS != null){
                 SocketGRDS.close();
             }
