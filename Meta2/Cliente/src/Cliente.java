@@ -6,23 +6,28 @@ import java.util.Scanner;
 public class Cliente {
     public static final int MAX_SIZE = 1024;
     public static final String ADDR_PORT_REQUEST = "GET_ADDR_PORT_TCP";
-
+    public static final String SERVER_REQUEST = "SERVER_REQUEST";
     public static void main(String args[]) {
 
-        InetAddress AddrGRDS;
-        int PortGRDS;
+        InetAddress AddrGRDS, serverAddress = null;
+        int PortGRDS, serverPort;
         DatagramSocket SocketGRDS = null;
+        Socket socket = null;
         DatagramPacket packet;
         String responseGRDS;
         Servidor server;
         ByteArrayInputStream bais;
         ObjectInputStream ois;
+        ObjectOutputStream oout = null;
         if (args.length != 2){
             System.out.println("Sintaxe: java Cliente serverAddress serverUdpPort");
             return;
         }
 
         try{
+
+            /////////Pede dados de um servidor ativo///////////
+
             SocketGRDS = new DatagramSocket();
             AddrGRDS = InetAddress.getByName(args[0]);
             PortGRDS = Integer.parseInt(args[1]);
@@ -41,6 +46,20 @@ public class Cliente {
             System.out.println("server hostname: " + server.getServerAddress().toString());
             System.out.println("server port: " + server.getListeningPort());
 
+            ///////////////Tenta conectar a servidor///////////////
+
+            serverAddress = server.getServerAddress();
+            serverPort = server.getListeningPort();
+
+            socket = new Socket(serverAddress, serverPort);
+            socket.setSoTimeout(30000);
+
+            ois = new ObjectInputStream(socket.getInputStream());
+            oout = new ObjectOutputStream(socket.getOutputStream());
+
+            oout.writeUnshared(SERVER_REQUEST);
+            oout.flush();
+
         }catch(UnknownHostException e){
             System.out.println("Destino desconhecido:\n\t"+e);
         }catch(NumberFormatException e){
@@ -48,7 +67,7 @@ public class Cliente {
         }catch(SocketTimeoutException e){
             System.out.println("Nao foi recebida qualquer resposta:\n\t"+e);
         }catch(SocketException e){
-            System.out.println("Ocorreu um erro ao nivel do socket UDP:\n\t"+e);
+            System.out.println("Ocorreu um erro ao nivel do socket:\n\t"+e);
         }catch(IOException e){
             System.out.println("Ocorreu um erro no acesso ao socket:\n\t"+e);
         } catch (ClassNotFoundException e) {
@@ -58,6 +77,8 @@ public class Cliente {
                 SocketGRDS.close();
             }
         }
+
+
 
         Scanner sc = new Scanner(System.in);
         ArrayList<String> credentials = new ArrayList<>(2);
