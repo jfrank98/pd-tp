@@ -10,9 +10,9 @@ public class GRDS implements Runnable {
     private static final String SERVER_REQUEST = "SERVER_GET_ADDR_PORT_TCP";
     private static String SERVER_CHECK = "SERVER_ACTIVE";
     private static final String CLIENT_REQUEST = "GET_ADDR_PORT_TCP";
-    private static ArrayList<Servidor> servidores;
-    public GRDS(ArrayList<Servidor> s){
-        servidores = s;
+    private static ArrayList<Servidor> servers = new ArrayList<>();
+    public GRDS(){
+
     }
 
     public static void main(String[] args)  {
@@ -27,7 +27,7 @@ public class GRDS implements Runnable {
         int server_index = 0;
         Servidor empty = new Servidor();
 
-        ArrayList<Servidor> servers = new ArrayList<>();
+
         if(args.length != 1){
             System.out.println("Sintaxe: java GRDS listeningPort");
             return;
@@ -58,9 +58,8 @@ public class GRDS implements Runnable {
                     newServer.setTimeSinceLastMsg(System.currentTimeMillis()/1000);
                     servers.add(newServer);
                     if (firstServer) {
-                        System.out.println("sup");
                         firstServer = false;
-                        Runnable r = new GRDS(servers);
+                        Runnable r = new GRDS();
                         new Thread(r).start();
                     }
                 }
@@ -115,18 +114,22 @@ public class GRDS implements Runnable {
 
     public void run() {
         while (true) {
-            if (servidores.size() == 0) continue;
-            for (Servidor s : servidores) {
+            if (servers.size() == 0) continue;
+            for (Servidor s : servers) {
                 double seconds = 2;
                 //System.out.println("Time since last msg: " + ((System.currentTimeMillis()/1000) - s.getTimeSinceLastMsg()));
                 if ((System.currentTimeMillis()/1000) - s.getTimeSinceLastMsg() >= seconds) {
                     System.out.println("Server id " + s.getId() + " has not answered " + (s.getPeriods()+1) + " times.");
-                    s.setPeriods(s.getPeriods() + 1);
-                    s.setTimeSinceLastMsg(System.currentTimeMillis()/1000);
+                    synchronized(servers) {
+                        s.setPeriods(s.getPeriods() + 1);
+                        s.setTimeSinceLastMsg(System.currentTimeMillis() / 1000);
+                    }
                     if (s.getPeriods() == 3) {
                         System.out.println("Server id " + s.getId() + " has been removed.");
-                        servidores.remove(s);
-                        if (servidores.size() == 0) break;
+                        synchronized(servers) {
+                            servers.remove(s);
+                        }
+                        if (servers.size() == 0) break;
                     }
                 }
             }

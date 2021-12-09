@@ -1,5 +1,7 @@
 import java.io.*;
 import java.net.*;
+import java.rmi.Naming;
+import java.rmi.NotBoundException;
 
 public class Servidor implements Runnable{
 
@@ -9,6 +11,7 @@ public class Servidor implements Runnable{
     private static DatagramPacket p;
     private static InetAddress addr;
     private static int port;
+
     public Servidor(DatagramPacket packet, DatagramSocket socket, InetAddress addr, int port){
         s = socket;
         p = packet;
@@ -21,11 +24,7 @@ public class Servidor implements Runnable{
         int PortGRDS;
         DatagramSocket SocketGRDS = null;
         DatagramPacket packet;
-        String responseGRDS;
-        InetAddress SGBDaddress;
         boolean connected = false;
-
-        int listeningPort;
 
         ServerSocket listeningSocket;
         Socket nextClient = null;
@@ -39,7 +38,6 @@ public class Servidor implements Runnable{
             return;
         }
         try {
-
             if (args.length == 1) {
                 AddrGRDS = InetAddress.getByName("230.30.30.30");
                 PortGRDS = 3030;
@@ -47,13 +45,10 @@ public class Servidor implements Runnable{
                 AddrGRDS = InetAddress.getByName(args[1]);
                 PortGRDS = Integer.parseInt(args[2]);
             }
-            SGBDaddress = InetAddress.getByName(args[0]);
             SocketGRDS = new DatagramSocket();
             SocketGRDS.setSoTimeout(5000);
 
             listeningSocket = new ServerSocket(SocketGRDS.getLocalPort());
-
-            listeningPort = listeningSocket.getLocalPort();
 
             System.out.println("Listening on port " + listeningSocket.getLocalPort());
 
@@ -76,24 +71,15 @@ public class Servidor implements Runnable{
                 ADDR_PORT_REQUEST = "SERVER_ACTIVE";
 
 
-                //Começa a aceitar clientes
-                nextClient = listeningSocket.accept();
+                    //Começa a aceitar clientes
+                    nextClient = listeningSocket.accept();
 
-                oout = new ObjectOutputStream(nextClient.getOutputStream());
-                oin = new ObjectInputStream(nextClient.getInputStream());
+                    new ThreadClient(nextClient, args[0]).start();
 
-                receivedMsg = (String) oin.readObject();
-
-                if(receivedMsg == null){ //EOF
-                    continue; //to next client request
-                }
-
-                System.out.println("Recebido \"" + receivedMsg.trim() + "\" de " +
-                        nextClient.getInetAddress().getHostAddress() + ":" +
-                        nextClient.getPort());
 
 //                oout.writeObject(calendar);
 //                oout.flush();
+
             }
         } catch (UnknownHostException e) {
             System.out.println("Destino desconhecido:\n\t" + e);
@@ -105,19 +91,6 @@ public class Servidor implements Runnable{
             System.out.println("Ocorreu um erro ao nivel do socket UDP:\n\t" + e);
         } catch (IOException e) {
             System.out.println("Ocorreu um erro no acesso ao socket:\n\t" + e);
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace();
-        } finally {
-            if (SocketGRDS != null) {
-                SocketGRDS.close();
-            }
-            if (nextClient != null) {
-                try {
-                    nextClient.close();
-                } catch (IOException e) {
-                    System.out.println("Erro ao fechar socket de cliente.");
-                }
-            }
         }
     }
 
