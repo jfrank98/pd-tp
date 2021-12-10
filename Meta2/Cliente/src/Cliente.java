@@ -16,8 +16,8 @@ public class Cliente {
         DatagramPacket packet;
         Servidor server;
         ByteArrayInputStream bin;
-        ObjectInputStream oin;
-        ObjectOutputStream oout = null;
+        ObjectInputStream oin, oinS;
+        ObjectOutputStream oout;
         boolean connected = false;
         String ans;
         Request request = new Request();
@@ -34,94 +34,25 @@ public class Cliente {
             SocketGRDS = new DatagramSocket();
             AddrGRDS = InetAddress.getByName(args[0]);
             PortGRDS = Integer.parseInt(args[1]);
-
+            System.out.println("bruh");
             packet = new DatagramPacket(ADDR_PORT_REQUEST.getBytes(), ADDR_PORT_REQUEST.length(), AddrGRDS, PortGRDS);
             SocketGRDS.send(packet);
-
-            packet = new DatagramPacket(new byte[MAX_SIZE], MAX_SIZE, AddrGRDS, PortGRDS);
+            System.out.println("bruh");
+            packet.setData(new byte[MAX_SIZE], 0, MAX_SIZE);
             SocketGRDS.receive(packet);
-
+            System.out.println("bruh");
             bin = new ByteArrayInputStream(packet.getData(), 0, packet.getLength());
             oin = new ObjectInputStream(bin);
-
+            System.out.println("bruh");
             server = (Servidor) oin.readObject();
+
+            SocketGRDS.close();
 
             System.out.println("server hostname: " + server.getServerAddress().toString());
             System.out.println("server port: " + server.getListeningPort());
 
-            ///////////////Tenta conectar a servidor///////////////
-
-            serverAddress = server.getServerAddress();
-            serverPort = server.getListeningPort();
-
-            socket = new Socket(serverAddress, serverPort);
-            socket.setSoTimeout(30000);
-
-            while (true) {
-
-                if (!connected) {
-                    System.out.println("bruhhhh");
-                    oout = new ObjectOutputStream(socket.getOutputStream());
-                    oin = new ObjectInputStream(socket.getInputStream());
-                    System.out.println("bruhhhh");
-
-                    System.out.println("bruhhhh");
-                    request.setRequest(SERVER_REQUEST);
-                    oout.writeUnshared(request);
-                    oout.flush();
-
-                    ans = (String) oin.readObject();
-
-                    System.out.println(ans);
-
-                    connected = true;
-                }
-
-                Scanner sc = new Scanner(System.in);
-                ArrayList<String> credentials = new ArrayList<>(3);
-                int option = 0;
 
 
-                if (!request.isSession()) {
-                    System.out.println("1 - Iniciar sessão");
-                    System.out.println("2 - Criar conta");
-                }
-                System.out.println("3 - Fechar cliente");
-                System.out.println();
-                System.out.print("Opção: ");
-                while (!sc.hasNextInt()) ;
-                option = sc.nextInt();
-
-                if (option == 1 && !request.isSession()) {
-                    getUserCredentials(credentials);
-                    request.setUsername(credentials.get(0));
-                    request.setPassword(credentials.get(1));
-                    request.setRequest("LOGIN");
-                    oout.writeUnshared(request);
-                    oout.flush();
-                    ans = (String) oin.readObject();
-                    if (ans.equals("SUCCESS")) {
-                        request.setSession(true);
-                    }
-                } else if (option == 2 && !request.isSession()) {
-                    getUserCredentials(credentials);
-                    request.setUsername(credentials.get(0));
-                    request.setPassword(credentials.get(1));
-                    request.setName(credentials.get(2));
-                    request.setRequest("CREATE_ACCOUNT");
-                    oout.writeUnshared(request);
-                    oout.flush();
-                    ans = (String) oin.readObject();
-                    System.out.println(ans);
-                    if (ans.equals("SUCCESS")) {
-                        request.setSession(true);
-                    }
-                } else if (option == 3)
-                    return;
-                else {
-                    System.out.println("Opção inexistente.");
-                }
-            }
         } catch (UnknownHostException e) {
             System.out.println("Destino desconhecido:\n\t" + e);
             return;
@@ -144,6 +75,82 @@ public class Cliente {
             if (SocketGRDS != null) {
                 SocketGRDS.close();
             }
+        }
+
+        Scanner sc = new Scanner(System.in);
+        ArrayList<String> credentials = new ArrayList<>(3);
+        int option = 0;
+        try {
+
+            ///////////////Tenta conectar a servidor///////////////
+
+            serverAddress = server.getServerAddress();
+            serverPort = server.getListeningPort();
+
+            socket = new Socket(serverAddress, serverPort);
+            socket.setSoTimeout(5000);
+
+            oout = new ObjectOutputStream(socket.getOutputStream());
+            oinS = new ObjectInputStream(socket.getInputStream());
+
+            request.setRequest(SERVER_REQUEST);
+            oout.writeUnshared(request);
+            oout.flush();
+
+            ans = (String) oinS.readObject();
+
+            System.out.println(ans);
+
+            while (true) {
+
+
+                if (!request.isSession()) {
+                    System.out.println("1 - Iniciar sessão");
+                    System.out.println("2 - Criar conta");
+                }
+                System.out.println("3 - Fechar cliente");
+                System.out.println();
+                System.out.print("Opção: ");
+                while (!sc.hasNextInt()) ;
+                option = sc.nextInt();
+
+                if (option == 1 && !request.isSession()) {
+                    getUserCredentials(credentials);
+                    request.setUsername(credentials.get(0));
+                    request.setPassword(credentials.get(1));
+                    request.setRequest("LOGIN");
+                    oout.writeUnshared(request);
+                    oout.flush();
+                    ans = (String) oinS.readObject();
+                    System.out.println(ans);
+                    if (ans.equals("SUCCESS")) {
+                        request.setSession(true);
+                    }
+                } else if (option == 2 && !request.isSession()) {
+                    getUserCredentials(credentials);
+                    request.setUsername(credentials.get(0));
+                    request.setPassword(credentials.get(1));
+                    request.setName(credentials.get(2));
+                    request.setRequest("CREATE_ACCOUNT");
+                    oout.writeUnshared(request);
+                    oout.flush();
+                    ans = (String) oinS.readObject();
+                    System.out.println(ans);
+                    if (ans.equals("SUCCESS")) {
+                        request.setSession(true);
+                    }
+                } else if (option == 3)
+                    return;
+                else {
+                    System.out.println("Opção inexistente.");
+                }
+            }
+        } catch (SocketTimeoutException e) {
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
         }
     }
 

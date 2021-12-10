@@ -5,7 +5,7 @@ public class Servidor implements Serializable {
     private InetAddress serverAddress;
     private int listeningPort;
     private boolean online = false;
-    private static int id = 0;
+    private int id = 0;
     private double timeSinceLastMsg = 0;
     private int periods = 0;
     public static final long serialVersionUID = 1L;
@@ -14,7 +14,6 @@ public class Servidor implements Serializable {
         serverAddress = addr;
         listeningPort = port;
         online = true;
-        id++;
     }
 
     public Servidor() {
@@ -36,7 +35,9 @@ public class Servidor implements Serializable {
         return timeSinceLastMsg;
     }
 
-    public static int getId() {
+    public void setId(int id) { this.id = id; }
+
+    public int getId() {
         return id;
     }
 

@@ -1,0 +1,8 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="GRDS:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/GRDS_jar</output-path>
+    <root id="archive" name="GRDS.jar">
+      <element id="module-output" name="GRDS" />
+    </root>
+  </artifact>
+</component>

@@ -87,6 +87,7 @@ public class Servidor implements Runnable{
             System.out.println("O porto do servidor deve ser um inteiro positivo.");
         } catch (SocketTimeoutException e) {
             System.out.println("Nao foi recebida qualquer resposta:\n\t"+e);
+            attempt++;
         } catch (SocketException e) {
             System.out.println("Ocorreu um erro ao nivel do socket UDP:\n\t" + e);
         } catch (IOException e) {

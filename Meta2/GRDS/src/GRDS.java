@@ -3,20 +3,23 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.net.*;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
-public class GRDS implements Runnable {
+public class GRDS {
 
     private static final int MAX_SIZE = 1024;
     private static final String SERVER_REQUEST = "SERVER_GET_ADDR_PORT_TCP";
     private static String SERVER_CHECK = "SERVER_ACTIVE";
     private static final String CLIENT_REQUEST = "GET_ADDR_PORT_TCP";
-    private static ArrayList<Servidor> servers = new ArrayList<>();
+
+    private static int server_index = 0;
     public GRDS(){
 
     }
 
     public static void main(String[] args)  {
-        InetAddress AddrGRDS;
         int listeningPort;
         DatagramSocket socket = null;
         DatagramPacket packet;
@@ -24,9 +27,9 @@ public class GRDS implements Runnable {
         ByteArrayOutputStream baos;
         ObjectOutputStream oos;
         boolean firstServer = true;
-        int server_index = 0;
+        int id = 1;
         Servidor empty = new Servidor();
-
+        ArrayList<Servidor> servers = new ArrayList<>();
 
         if(args.length != 1){
             System.out.println("Sintaxe: java GRDS listeningPort");
@@ -42,58 +45,84 @@ public class GRDS implements Runnable {
 
             socket = new DatagramSocket(listeningPort);
             while(true) {
+
                 packet = new DatagramPacket(new byte[MAX_SIZE], MAX_SIZE);
                 socket.receive(packet);
 
                 response = new String(packet.getData(), 0, packet.getLength());
 
-                //Verifica tempo desde a última resposta de cada servidor,
-                // se passarem 60 segundos é eliminado do ArrayList
-
-
+                if (!response.equalsIgnoreCase("SERVER_ACTIVE")) {
+                    System.out.println(response);
+                }
 
                 if (response.equals(SERVER_REQUEST)) {
                     System.out.println("Message from server with address: " + packet.getAddress() + ", port: " + packet.getPort());
                     Servidor newServer = new Servidor(packet.getAddress(), packet.getPort());
                     newServer.setTimeSinceLastMsg(System.currentTimeMillis()/1000);
+                    newServer.setId(id);
+                    newServer.setOnline(true);
+                    id++;
                     servers.add(newServer);
-                    if (firstServer) {
-                        firstServer = false;
-                        Runnable r = new GRDS();
-                        new Thread(r).start();
-                    }
                 }
+
                 else if (response.equals(SERVER_CHECK)) {
-                    for(Servidor s : servers) {
-                        if (packet.getAddress().equals(s.getServerAddress()) && packet.getPort() == s.getListeningPort()){
+                    for (Servidor s : servers) {
+                        if (packet.getAddress().equals(s.getServerAddress()) && packet.getPort() == s.getListeningPort()) {
                             s.setPeriods(0);
-                            s.setTimeSinceLastMsg(System.currentTimeMillis()/1000);
+                            s.setTimeSinceLastMsg(System.currentTimeMillis() / 1000);
+                            s.setOnline(true);
                         }
                     }
                 }
+
                 else if (response.equals(CLIENT_REQUEST)){
                     System.out.println("Sent server details to client.");
                     if (servers.size() > 0) {
-                        if (server_index == servers.size()){
+                        if (server_index >= servers.size() || server_index < 0) {
                             server_index = 0;
                         }
-                        oos.writeUnshared(servers.get(server_index));
-                        byte[] data = baos.toByteArray();
-                        packet.setData(data, 0, data.length);
-                    }
-                    else {
+                        if (servers.size() == 1 && servers.get(0).isOnline()){
+                            oos.writeUnshared(servers.get(server_index));
+                            byte[] data = baos.toByteArray();
+                            packet.setData(data, 0, data.length);
+                        }
+                        else if(servers.get(server_index).isOnline()) {
+                            oos.writeUnshared(servers.get(server_index));
+                            byte[] data = baos.toByteArray();
+                            packet.setData(data, 0, data.length);
+                            server_index++;
+                        }
+                        else if ((server_index + 1) >= servers.size()) server_index = 0;
+                    } else {
                         oos.writeUnshared(empty);
                         byte[] data = baos.toByteArray();
                         packet.setData(data, 0, data.length);
                     }
+                    socket.send(packet);
                 }
 
-                InetAddress clientAddress = packet.getAddress();
-                int clientPort = packet.getPort();
-                response = "";
 
-                socket.send(packet);
 
+                //Verifica tempo desde a última resposta de cada servidor,
+                // se passarem 60 segundos é eliminado do ArrayList
+
+                if (servers.size() == 0) continue;
+                for (Servidor s : servers) {
+                    double seconds = 2;
+                    //System.out.println("Time since last msg: " + ((System.currentTimeMillis()/1000) - s.getTimeSinceLastMsg()));
+                    if ((System.currentTimeMillis() / 1000) - s.getTimeSinceLastMsg() >= seconds) {
+                        System.out.println("Server id " + s.getId() + " has not answered " + (s.getPeriods() + 1) + " times.");
+                        s.setPeriods(s.getPeriods() + 1);
+                        s.setTimeSinceLastMsg(System.currentTimeMillis() / 1000);
+                        s.setOnline(false);
+                        if (s.getPeriods() == 3) {
+                            System.out.println("Server id " + s.getId() + " has been removed.");
+                            servers.remove(s);
+                            server_index--;
+                            if (servers.size() == 0) break;
+                        }
+                    }
+                }
             }
         }catch(UnknownHostException e){
             System.out.println("Destino desconhecido:\n\t"+e);
@@ -112,27 +141,4 @@ public class GRDS implements Runnable {
         }
     }
 
-    public void run() {
-        while (true) {
-            if (servers.size() == 0) continue;
-            for (Servidor s : servers) {
-                double seconds = 2;
-                //System.out.println("Time since last msg: " + ((System.currentTimeMillis()/1000) - s.getTimeSinceLastMsg()));
-                if ((System.currentTimeMillis()/1000) - s.getTimeSinceLastMsg() >= seconds) {
-                    System.out.println("Server id " + s.getId() + " has not answered " + (s.getPeriods()+1) + " times.");
-                    synchronized(servers) {
-                        s.setPeriods(s.getPeriods() + 1);
-                        s.setTimeSinceLastMsg(System.currentTimeMillis() / 1000);
-                    }
-                    if (s.getPeriods() == 3) {
-                        System.out.println("Server id " + s.getId() + " has been removed.");
-                        synchronized(servers) {
-                            servers.remove(s);
-                        }
-                        if (servers.size() == 0) break;
-                    }
-                }
-            }
-        }
-    }
 }

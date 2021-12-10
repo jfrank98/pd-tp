@@ -9,7 +9,6 @@ import java.rmi.RemoteException;
 
 public class ThreadClient extends Thread{
     private Socket socket;
-    private boolean firstMsg = true;
     private String dbAddress;
     public ThreadClient(Socket clientSocket, String dbAddress) {
         this.socket = clientSocket;
@@ -56,7 +55,12 @@ public class ThreadClient extends Thread{
                         ans = "Connected to server successfully.";
                     }
                     else if (req.getRequest().equalsIgnoreCase("CREATE_ACCOUNT")){
-                        ans = (String) remoteDB.createAccount(req.getUsername(), req.getPassword(), req.getName());
+                        System.out.println("REQUEST: " + req.getRequest());
+                        ans = remoteDB.createAccount(req.getUsername(), req.getPassword(), req.getName());
+                    }
+                    else if (req.getRequest().equalsIgnoreCase("LOGIN")) {
+                        System.out.println("REQUEST: " + req.getRequest());
+                        ans = remoteDB.loginUser(req.getUsername(), req.getPassword());
                     }
                     out.writeUnshared(ans);
                     out.flush();
