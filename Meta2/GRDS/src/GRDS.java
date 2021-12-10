@@ -67,6 +67,7 @@ public class GRDS implements Runnable{
                     if (firstServer) {
                         Runnable r = new GRDS();
                         new Thread(r).start();
+                        firstServer = false;
                     }
                 }
 
