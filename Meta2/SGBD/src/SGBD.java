@@ -94,7 +94,7 @@ public class SGBD extends UnicastRemoteObject implements RemoteInterface {
 
             while (rs.next()) {
                 System.out.println(" checking u: " + rs.getString(3) + " p: " + rs.getString(2));
-                if (u.equalsIgnoreCase(rs.getString(3)) && u.equalsIgnoreCase(rs.getString(2))){
+                if (u.equalsIgnoreCase(rs.getString(3)) && p.equalsIgnoreCase(rs.getString(2))){
                     ans = "SUCCESS";
                     break;
                 }
