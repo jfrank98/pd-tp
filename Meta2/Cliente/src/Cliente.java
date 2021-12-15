@@ -136,8 +136,15 @@ public class Cliente {
                     oout.flush();
                     ans = (String) oinS.readObject();
                     System.out.println(ans);
+                    if (ans.equals(null)) {
+                        System.out.println("Erro ao tentar criar conta.");
+                        return;
+                    }
                     if (ans.equals("SUCCESS")) {
                         request.setSession(true);
+                    }
+                    else {
+                        return;
                     }
                 } else if (option == 3)
                     return;
