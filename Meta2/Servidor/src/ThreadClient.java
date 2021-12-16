@@ -1,10 +1,9 @@
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.net.MalformedURLException;
 import java.net.Socket;
-import java.rmi.Naming;
-import java.rmi.NotBoundException;
+import java.net.SocketException;
 import java.rmi.RemoteException;
 import java.sql.*;
 
@@ -30,38 +29,39 @@ public class ThreadClient extends Thread{
         ObjectOutputStream out;
 
         try {
-            System.out.println("bruhhhh");
             oin = new ObjectInputStream(socket.getInputStream());
             out = new ObjectOutputStream(socket.getOutputStream());
-            System.out.println("bruhhhh");
         } catch (IOException e) {
             return;
         }
         Request req;
-        String ans = null;
-        System.out.println("bruhhhh");
+
         while (true) {
-            System.out.println("bruhhhh");
             try {
+                try {
+                    req = (Request) oin.readObject();
+                }catch(EOFException | SocketException e) {
+                    System.out.println("Cliente da thread ID " + Thread.currentThread().getId() + " fechado.");
+                    socket.close();
+                    return;
+                }
 
-                req = (Request) oin.readObject();
-
-                if ((req == null) || req.getRequest().equalsIgnoreCase("QUIT") ) {
+                if ((req == null) || req.getMessage().equalsIgnoreCase("QUIT") ) {
                     socket.close();
                     return;
                 } else {
-                    if (req.getRequest().equalsIgnoreCase("SERVER_REQUEST")){
-                        ans = "Connected to server successfully.";
+                    if (req.getMessage().equalsIgnoreCase("SERVER_REQUEST")){
+                        req.setMessage("Connected to server successfully.");
                     }
-                    else if (req.getRequest().equalsIgnoreCase("CREATE_ACCOUNT")){
-                        System.out.println("REQUEST: " + req.getRequest());
-                        ans = createAccount(req.getUsername(), req.getPassword(), req.getName());
+                    else if (req.getMessage().equalsIgnoreCase("CREATE_ACCOUNT")){
+                        System.out.println("REQUEST: " + req.getMessage());
+                        req.setMessage(createAccount(req.getUsername(), req.getPassword(), req.getName()));
                     }
-                    else if (req.getRequest().equalsIgnoreCase("LOGIN")) {
-                        System.out.println("REQUEST: " + req.getRequest());
-                        ans = loginUser(req.getUsername(), req.getPassword());
+                    else if (req.getMessage().equalsIgnoreCase("LOGIN")) {
+                        System.out.println("REQUEST: " + req.getMessage());
+                        req.setMessage(loginUser(req.getUsername(), req.getPassword()));
                     }
-                    out.writeUnshared(ans);
+                    out.writeUnshared(req);
                     out.flush();
                 }
             } catch (IOException | ClassNotFoundException e) {
@@ -74,8 +74,6 @@ public class ThreadClient extends Thread{
 
     public String createAccount(String u, String p, String n) throws RemoteException {
         String ans = null;
-
-        System.out.println("ok nice");
 
         try {
             PreparedStatement ps = conn.prepareStatement("INSERT INTO User (password, username, name) VALUES (?, ?, ?)");
@@ -117,10 +115,6 @@ public class ThreadClient extends Thread{
         return ans;
     }
 
-    public void checkServerConnection(String s) throws RemoteException {
-        System.out.println(s);
-    }
-
     public String loginUser(String u, String p) throws RemoteException {
         String ans = "FAILURE";
         System.out.println("ok nice");
@@ -129,8 +123,7 @@ public class ThreadClient extends Thread{
         try {
             ResultSet rs = stmt.executeQuery(GET_USERS_QUERY);
             while (rs.next()) {
-                System.out.println(" checking u: " + rs.getString(3) + " p: " + rs.getString(2));
-                if (u.equalsIgnoreCase(rs.getString(3)) && u.equalsIgnoreCase(rs.getString(2))) {
+                if (u.equalsIgnoreCase(rs.getString(3)) && p.equalsIgnoreCase(rs.getString(2))) {
                     ans = "SUCCESS";
                     break;
                 }

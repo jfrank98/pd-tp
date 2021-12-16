@@ -11,6 +11,7 @@ public class GRDS implements Runnable{
 
     private static final int MAX_SIZE = 1024;
     private static final String SERVER_REQUEST = "SERVER_GET_ADDR_PORT_TCP";
+    private static final String SERVER_GRDS_CHECK = "CHECK_GRDS";
     private static String SERVER_CHECK = "SERVER_ACTIVE";
     private static final String CLIENT_REQUEST = "GET_ADDR_PORT_TCP";
     private static List<Servidor> servers = Collections.synchronizedList(new ArrayList<>());
@@ -50,7 +51,7 @@ public class GRDS implements Runnable{
 
                 response = new String(packet.getData(), 0, packet.getLength());
 
-                if (!response.equalsIgnoreCase("SERVER_ACTIVE")) {
+                if (!response.equalsIgnoreCase(SERVER_CHECK) && !response.equalsIgnoreCase(SERVER_GRDS_CHECK)) {
                     System.out.println(response);
                 }
 
@@ -69,6 +70,8 @@ public class GRDS implements Runnable{
                         new Thread(r).start();
                         firstServer = false;
                     }
+                    packet.setData(SERVER_REQUEST.getBytes(), 0, SERVER_REQUEST.length());
+                    socket.send(packet);
                 }
 
                 else if (response.equals(SERVER_CHECK)) {
@@ -81,6 +84,12 @@ public class GRDS implements Runnable{
                             }
                         }
                     }
+                    packet.setData(SERVER_REQUEST.getBytes(), 0, SERVER_REQUEST.length());
+                    socket.send(packet);
+                }
+                else if (response.equals(SERVER_GRDS_CHECK)) {
+                    packet.setData(SERVER_REQUEST.getBytes(), 0, SERVER_REQUEST.length());
+                    socket.send(packet);
                 }
 
                 else if (response.equals(CLIENT_REQUEST)){
@@ -93,7 +102,7 @@ public class GRDS implements Runnable{
                                 if (nOffline == servers.size()) {
                                     break;
                                 }
-                                if (server_index >= servers.size()) {
+                                if (server_index >= servers.size() || server_index < 0) {
                                     server_index = 0;
                                 }
                                 if (servers.get(server_index).isOnline()) {
@@ -147,25 +156,25 @@ public class GRDS implements Runnable{
     }
 
     public void run() {
-        while (true){
-            if (servers.size() == 0) continue;
-            for (Servidor s : servers) {
-                double seconds = 2;
-                //System.out.println("Time since last msg: " + ((System.currentTimeMillis()/1000) - s.getTimeSinceLastMsg()));
-                if ((System.currentTimeMillis() / 1000) - s.getTimeSinceLastMsg() >= seconds) {
-                    System.out.println("Server id " + s.getId() + " has not answered " + (s.getPeriods() + 1) + " times.");
-                    s.setPeriods(s.getPeriods() + 1);
-                    s.setTimeSinceLastMsg(System.currentTimeMillis() / 1000);
-                    s.setOnline(false);
-                    if (s.getPeriods() == 3) {
-                        System.out.println("Server id " + s.getId() + " has been removed.");
-                        servers.remove(s);
-                        server_index--;
-                        if (servers.size() == 0) break;
+            while (true) {
+                if (servers.size() == 0) continue;
+                for (Servidor s : servers) {
+                    double seconds = 2;
+                    //System.out.println("Time since last msg: " + ((System.currentTimeMillis()/1000) - s.getTimeSinceLastMsg()));
+                    if ((System.currentTimeMillis() / 1000) - s.getTimeSinceLastMsg() >= seconds) {
+                        System.out.println("Server id " + s.getId() + " has not answered " + (s.getPeriods() + 1) + " times.");
+                        s.setPeriods(s.getPeriods() + 1);
+                        s.setTimeSinceLastMsg(System.currentTimeMillis() / 1000);
+                        s.setOnline(false);
+                        if (s.getPeriods() == 3) {
+                            System.out.println("Server id " + s.getId() + " has been removed.");
+                            servers.remove(s);
+                            server_index--;
+                            if (servers.size() == 0) break;
+                        }
                     }
                 }
             }
-        }
     }
 
 }

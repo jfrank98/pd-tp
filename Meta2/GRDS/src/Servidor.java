@@ -3,7 +3,7 @@ import java.net.InetAddress;
 
 public class Servidor implements Serializable {
     private InetAddress serverAddress;
-    private int listeningPort;
+    private int listeningPort = 0;
     private boolean online = false;
     private int id = 0;
     private double timeSinceLastMsg = 0;

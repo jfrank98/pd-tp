@@ -5,7 +5,8 @@ public class Request implements Serializable {
     private String password;
     private String name;
     private boolean session = false;
-    private String request;
+    private String message;
+    private boolean serverIsOnline = false;
 
     public static final long serialVersionUID = 1L;
 
@@ -47,12 +48,12 @@ public class Request implements Serializable {
         return password;
     }
 
-    public String getRequest() {
-        return request;
+    public String getMessage() {
+        return message;
     }
 
-    public void setRequest(String request) {
-        this.request = request;
+    public void setMessage(String request) {
+        this.message = request;
     }
 
     public void setUsername(String username) {
