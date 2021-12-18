@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="SGBD">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/SGBD/out/artifacts/SGBD_jar/SGBD.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
