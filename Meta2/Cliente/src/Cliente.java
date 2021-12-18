@@ -7,6 +7,7 @@ public class Cliente {
     public static final int MAX_SIZE = 1024;
     public static final String ADDR_PORT_REQUEST = "GET_ADDR_PORT_TCP";
     public static final String SERVER_REQUEST = "SERVER_REQUEST";
+
     public static void main(String args[]) {
 
         InetAddress AddrGRDS, serverAddress = null;
