@@ -4,6 +4,8 @@ public class Request implements Serializable {
     private String username;
     private String password;
     private String name;
+    private String oldUsername;
+    private String oldPassword;
     private boolean session = false;
     private String message;
     private boolean serverIsOnline = false;
@@ -40,6 +42,10 @@ public class Request implements Serializable {
         return name;
     }
 
+    public String getOldUsername() { return oldUsername; }
+
+    public String getOldPassword() {return oldPassword; }
+
     public void setName(String name) {
         this.name = name;
     }
@@ -63,6 +69,10 @@ public class Request implements Serializable {
     public void setPassword(String password) {
         this.password = password;
     }
+
+    public void setOldUsername(String oldUsername) { this.oldUsername = oldUsername; }
+
+    public void setOldPassword(String oldPassword) {this.oldPassword = oldPassword; }
 
     public void login(String username, String password) {
 

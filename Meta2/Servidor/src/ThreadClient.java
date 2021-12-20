@@ -1,3 +1,4 @@
+import javax.swing.*;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -61,6 +62,13 @@ public class ThreadClient extends Thread{
                         System.out.println("\nPedido do cliente: " + req.getMessage());
                         req.setMessage(loginUser(req.getUsername(), req.getPassword()));
                     }
+                    else if(req.getMessage().equalsIgnoreCase("CHANGE_USERNAME")){
+                        req.setMessage(changeUsername(req.getUsername(), req.getOldUsername()));
+                    }
+                    else if(req.getMessage().equalsIgnoreCase("CHANGE_PASSWORD")){
+                        System.out.println("\nPedido do cliente: " + req.getMessage());
+                        req.setMessage(changePassword(req.getUsername(), req.getPassword()));
+                    }
 
                     //Envia resposta ao cliente
                     out.writeUnshared(req);
@@ -110,8 +118,8 @@ public class ThreadClient extends Thread{
                 ans = "SUCCESS";
             }
 
-        } catch (SQLException throwables) {
-            throwables.printStackTrace();
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
 
         return ans;
@@ -129,9 +137,77 @@ public class ThreadClient extends Thread{
                     break;
                 }
             }
-        }catch(SQLException e){ }
+        }catch(SQLException e){
+            e.printStackTrace();
+        }
 
         System.out.println("\n" + ans);
+
+        return ans;
+    }
+
+    public String changeUsername(String n, String o) {
+        String ans = "FAILURE";
+        boolean exists = false;
+
+        try {
+            PreparedStatement ps = conn.prepareStatement("UPDATE User SET username = ? WHERE username = ?");
+            ps.setString(1, n);
+            ps.setString(2, o);
+
+            ResultSet rs = stmt.executeQuery(GET_USERS_QUERY);
+            ResultSet usernames = stmt.executeQuery(GET_USERNAMES_QUERY);
+
+            while (rs.next()) {
+                if (o.equalsIgnoreCase(rs.getString(3))) {
+                    //vê se o username já existe
+                    while (rs.next()) {
+                        if (n.equalsIgnoreCase(usernames.getString(1))) {
+                            exists = true;
+                            break;
+                        }
+                    }
+
+                    if(!exists){
+                        //altera username na base de dados
+                        ps.executeUpdate();
+                        ans = "SUCCESS";
+                    }
+                    else{
+                        ans = "FAILURE";
+                    }
+
+                    break;
+                }
+            }
+        }catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return ans;
+    }
+
+    public String changePassword(String u, String p){
+        String ans = "FAILURE";
+
+        try {
+            PreparedStatement ps = conn.prepareStatement("UPDATE User SET password = ? WHERE username = ?");
+            ps.setString(1, p);
+            ps.setString(2, u);
+
+            ResultSet rs = stmt.executeQuery(GET_USERS_QUERY);
+
+            while (rs.next()) {
+                if (u.equalsIgnoreCase(rs.getString(3))) {
+                    //altera password na base de dados
+                    ps.executeUpdate();
+                    ans = "SUCCESS";
+                    break;
+                }
+            }
+        }catch (SQLException e) {
+            e.printStackTrace();
+        }
 
         return ans;
     }

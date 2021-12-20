@@ -111,6 +111,9 @@ public class Cliente {
                 if (!request.isSession()) {
                     System.out.println("1 - Iniciar sessão");
                     System.out.println("2 - Criar conta");
+                } else{
+                    System.out.println("1 - Alterar username");
+                    System.out.println("2 - Alterar password");
                 }
 
                 System.out.println("3 - Sair");
@@ -118,88 +121,180 @@ public class Cliente {
                 while (!sc.hasNextInt());
                 option = sc.nextInt();
 
-                if (option == 1 && !request.isSession()) {
-                    request.setMessage("LOGIN");
-                    getUserCredentials(credentials, request.getMessage());
-                    request.setUsername(credentials.get(0));
-                    request.setPassword(credentials.get(1));
+                if(request.isSession()){
+                    if(option == 1){
+                        //Alterar username
+                        request.setMessage("CHANGE_USERNAME");
+                        request.setOldUsername(request.getUsername());
+                        request.setUsername(getNewUsername());
 
-                    //Tenta enviar pedido de LOGIN ao servidor
-                    try {
-                        oout.writeUnshared(request);
-
-                    } catch (SocketException e) {
-                        System.out.println("\nLigação com o servidor perdida.\nA procurar novo servidor...");
+                        //Tenta enviar pedido de CHANGE_USERNAME ao servidor
                         try {
-                            Thread.sleep(2000);
+                            oout.writeUnshared(request);
 
-                            if (getNewServer()) continue;
-                            else {
-                                System.out.println("\nNão foi possível encontrar um novo servidor/o GRDS fechou.\nA fechar o cliente...\n");
+                        } catch (SocketException e) {
+                            System.out.println("\nLigação com o servidor perdida.\nA procurar novo servidor...");
+                            try {
                                 Thread.sleep(2000);
-                                return;
+
+                                if (getNewServer()) continue;
+                                else {
+                                    System.out.println("\nNão foi possível encontrar um novo servidor/o GRDS fechou.\nA fechar o cliente...\n");
+                                    Thread.sleep(2000);
+                                    return;
+                                }
+                            } catch (InterruptedException interruptedException) {
+                                interruptedException.printStackTrace();
                             }
-                        } catch (InterruptedException interruptedException) {
-                            interruptedException.printStackTrace();
+                        }
+
+                        request = (Request) oinS.readObject();
+                        System.out.println("\n" + request.getMessage() + "\n");
+
+                        if(request.getMessage().equals("FAILURE")){
+                            request.setUsername(request.getOldUsername());
+                        }
+                        else if (request.getMessage().equals("SERVER_OFF")){
+                            getNewServer();
                         }
                     }
+                    else if(option == 2){
+                        //Alterar password
+                        request.setMessage("CHANGE_PASSWORD");
+                        request.setOldPassword(request.getPassword());
+                        request.setPassword(getNewPassword());
 
-                    request = (Request) oinS.readObject();
-                    System.out.println("\n" + request.getMessage() + "\n");
-
-                    if (request.getMessage().equals("SUCCESS")) {
-                        request.setSession(true);
-                    }
-                    else if (request.getMessage().equals("SERVER_OFF")){
-                        getNewServer();
-                    }
-                } else if (option == 2 && !request.isSession()) {
-                    request.setMessage("CREATE_ACCOUNT");
-                    getUserCredentials(credentials, request.getMessage());
-                    request.setUsername(credentials.get(0));
-                    request.setPassword(credentials.get(1));
-                    request.setName(credentials.get(2));
-
-                    //Tenta enviar pedido de CREATE_ACCOUNT ao servidor
-                    try {
-                        oout.writeUnshared(request);
-
-                    } catch (SocketException e) {
-                        System.out.println("\nLigação com o servidor perdida.\nA procurar novo servidor...");
-
+                        //Tenta enviar pedido de CHANGE_PASSWORD ao servidor
                         try {
-                            Thread.sleep(2000);
+                            oout.writeUnshared(request);
 
-                            if (getNewServer()) continue;
-                            else {
-                                System.out.println("\nNão foi possível encontrar um novo servidor/o GRDS fechou.\nA fechar cliente...\n");
+                        } catch (SocketException e) {
+                            System.out.println("\nLigação com o servidor perdida.\nA procurar novo servidor...");
+                            try {
                                 Thread.sleep(2000);
-                                return;
+
+                                if (getNewServer()) continue;
+                                else {
+                                    System.out.println("\nNão foi possível encontrar um novo servidor/o GRDS fechou.\nA fechar o cliente...\n");
+                                    Thread.sleep(2000);
+                                    return;
+                                }
+                            } catch (InterruptedException interruptedException) {
+                                interruptedException.printStackTrace();
                             }
-                        } catch (InterruptedException interruptedException) {
-                            interruptedException.printStackTrace();
+                        }
+
+                        request = (Request) oinS.readObject();
+                        System.out.println("\n" + request.getMessage() + "\n");
+
+                        if(request.getMessage().equals("FAILURE")){
+                            request.setPassword(request.getOldPassword());
+                        }
+                        else if (request.getMessage().equals("SERVER_OFF")){
+                            getNewServer();
                         }
                     }
-
-                    request = (Request) oinS.readObject();
-                    System.out.println("\n" + request.getMessage() + "\n");
-
-                    if (request.getMessage().equals(null)) {
-                        System.out.println("\nErro ao tentar criar conta.\n");
+                    else if(option == 3){
+                        //Sair
+                        SocketGRDS.close();
+                        socket.close();
+                        return;
                     }
-                    else if (request.getMessage().equals("SERVER_OFF")){
-                        getNewServer();
+                    else {
+                        //Opção inválida
+                        System.out.println("\nOpção inválida.\n");
                     }
-                    else if (request.getMessage().equals("SUCCESS")) {
-                        request.setSession(true);
-                    }
-                } else if (option == 3) {
-                    SocketGRDS.close();
-                    socket.close();
-                    return;
                 }
-                else {
-                    System.out.println("\nOpção inválida.\n");
+                else{
+                    if(option == 1){
+                        //Login
+                        request.setMessage("LOGIN");
+                        getUserCredentials(credentials, request.getMessage());
+                        request.setUsername(credentials.get(0));
+                        request.setPassword(credentials.get(1));
+
+                        //Tenta enviar pedido de LOGIN ao servidor
+                        try {
+                            oout.writeUnshared(request);
+
+                        } catch (SocketException e) {
+                            System.out.println("\nLigação com o servidor perdida.\nA procurar novo servidor...");
+                            try {
+                                Thread.sleep(2000);
+
+                                if (getNewServer()) continue;
+                                else {
+                                    System.out.println("\nNão foi possível encontrar um novo servidor/o GRDS fechou.\nA fechar o cliente...\n");
+                                    Thread.sleep(2000);
+                                    return;
+                                }
+                            } catch (InterruptedException interruptedException) {
+                                interruptedException.printStackTrace();
+                            }
+                        }
+
+                        request = (Request) oinS.readObject();
+                        System.out.println("\n" + request.getMessage() + "\n");
+
+                        if (request.getMessage().equals("SUCCESS")) {
+                            request.setSession(true);
+                        }
+                        else if (request.getMessage().equals("SERVER_OFF")){
+                            getNewServer();
+                        }
+                    }
+                    else if(option == 2){
+                        //Criar conta
+                        request.setMessage("CREATE_ACCOUNT");
+                        getUserCredentials(credentials, request.getMessage());
+                        request.setUsername(credentials.get(0));
+                        request.setPassword(credentials.get(1));
+                        request.setName(credentials.get(2));
+
+                        //Tenta enviar pedido de CREATE_ACCOUNT ao servidor
+                        try {
+                            oout.writeUnshared(request);
+
+                        } catch (SocketException e) {
+                            System.out.println("\nLigação com o servidor perdida.\nA procurar novo servidor...");
+
+                            try {
+                                Thread.sleep(2000);
+
+                                if (getNewServer()) continue;
+                                else {
+                                    System.out.println("\nNão foi possível encontrar um novo servidor/o GRDS fechou.\nA fechar cliente...\n");
+                                    Thread.sleep(2000);
+                                    return;
+                                }
+                            } catch (InterruptedException interruptedException) {
+                                interruptedException.printStackTrace();
+                            }
+                        }
+
+                        request = (Request) oinS.readObject();
+                        System.out.println("\n" + request.getMessage() + "\n");
+
+                        if (request.getMessage().equals(null)) {
+                            System.out.println("\nErro ao tentar criar conta.\n");
+                        }
+                        else if (request.getMessage().equals("SERVER_OFF")){
+                            getNewServer();
+                        }
+                        else if (request.getMessage().equals("SUCCESS")) {
+                            request.setSession(true);
+                        }
+                    }
+                    else if(option == 3){
+                        //Sair
+                        SocketGRDS.close();
+                        socket.close();
+                        return;
+                    }
+                    else {
+                        //Opção inválida
+                        System.out.println("\nOpção inválida.\n");
+                    }
                 }
             }
         } catch (SocketTimeoutException e) {
@@ -222,6 +317,20 @@ public class Cliente {
             System.out.print("Nome: ");
             cred.add(sc.nextLine());
         }
+    }
+
+    public static String getNewUsername(){
+        Scanner sc = new Scanner(System.in);
+
+        System.out.print("\nNovo username: ");
+        return sc.nextLine();
+    }
+
+    public static String getNewPassword(){
+        Scanner sc = new Scanner(System.in);
+
+        System.out.print("\nNova password: ");
+        return sc.nextLine();
     }
 
     public static boolean getNewServer() {
