@@ -37,25 +37,17 @@ public class Cliente {
             PortGRDS = Integer.parseInt(args[1]);
             SocketGRDS.setSoTimeout(5000);
 
-            //System.out.println("bruh");
-
             //Cria um DatagramPacket e envia-o ao GRDS através do DatagramSocket criado anteriormente
             packet = new DatagramPacket(ADDR_PORT_REQUEST.getBytes(), ADDR_PORT_REQUEST.length(), AddrGRDS, PortGRDS);
             SocketGRDS.send(packet);
-
-            //System.out.println("bruh 1");
 
             //Limpa o packet e recebe resposta do GRDS
             packet.setData(new byte[MAX_SIZE], 0, MAX_SIZE);
             SocketGRDS.receive(packet);
 
-            //System.out.println("bruh 2");
-
             //Lê o packet com os dados de um servidor ativo e cria um objeto
             bin = new ByteArrayInputStream(packet.getData(), 0, packet.getLength());
             oin = new ObjectInputStream(bin);
-
-            //System.out.println("bruh 3");
 
             //Lê o objeto e guarda os dados
             server = (Servidor) oin.readObject();
@@ -67,7 +59,7 @@ public class Cliente {
             System.out.println("\nDestino desconhecido:\n\t" + e);
             return;
         } catch (NumberFormatException e) {
-            System.out.println("\nO porto do servidor deve ser um inteiro positivo:\n\t" + e);
+            System.out.println("\nO porto de escuta do servidor deve ser um inteiro positivo:\n\t" + e);
             return;
         } catch (SocketTimeoutException e) {
             System.out.println("\nNão foi recebida qualquer resposta do GRDS:\n\t" + e);
@@ -137,13 +129,13 @@ public class Cliente {
                         oout.writeUnshared(request);
 
                     } catch (SocketException e) {
-                        System.out.println("\nLigação com o servidor perdida.\nA procurar novo servidor...\n");
+                        System.out.println("\nLigação com o servidor perdida.\nA procurar novo servidor...");
                         try {
                             Thread.sleep(2000);
 
                             if (getNewServer()) continue;
                             else {
-                                System.out.println("\nNão foi possível encontrar um novo servidor/o GRDS fechou.\nA fechar cliente...\n");
+                                System.out.println("\nNão foi possível encontrar um novo servidor/o GRDS fechou.\nA fechar o cliente...\n");
                                 Thread.sleep(2000);
                                 return;
                             }
@@ -173,7 +165,8 @@ public class Cliente {
                         oout.writeUnshared(request);
 
                     } catch (SocketException e) {
-                        System.out.println("\nLigação com o servidor perdida.\nA procurar novo servidor...\n");
+                        System.out.println("\nLigação com o servidor perdida.\nA procurar novo servidor...");
+
                         try {
                             Thread.sleep(2000);
 
@@ -189,7 +182,7 @@ public class Cliente {
                     }
 
                     request = (Request) oinS.readObject();
-                    System.out.println(request.getMessage());
+                    System.out.println("\n" + request.getMessage() + "\n");
 
                     if (request.getMessage().equals(null)) {
                         System.out.println("\nErro ao tentar criar conta.\n");
@@ -254,11 +247,12 @@ public class Cliente {
                 SocketGRDS.send(packet);
 
                 packet.setData(new byte[MAX_SIZE], 0, MAX_SIZE);
+
                 try {
                     SocketGRDS.receive(packet);
                 } catch (SocketTimeoutException e) {
                     attempt++;
-                    System.out.println("\nNão foi possível conectar ao GRDS. Tentativas restantes: " + (3 - attempt) + "\n");
+                    System.out.println("\nNão foi possível conectar ao GRDS. Tentativas restantes: " + (3 - attempt));
                     continue;
                 }
 
@@ -266,6 +260,7 @@ public class Cliente {
                 oin = new ObjectInputStream(bin);
 
                 newServer = (Servidor) oin.readObject();
+
                 if (newServer.getListeningPort() != 0){
                     System.out.println("\nNovo endereço IP: " + newServer.getServerAddress().toString());
                     System.out.println("Novo porto de escuta: " + newServer.getListeningPort());
@@ -280,7 +275,7 @@ public class Cliente {
 
                     request = (Request) oinS.readObject();
 
-                    System.out.println(request.getMessage());
+                    System.out.println("\n" + request.getMessage() + "\n");
                     return true;
                 }
 

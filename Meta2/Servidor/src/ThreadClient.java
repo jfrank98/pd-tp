@@ -22,8 +22,6 @@ public class ThreadClient extends Thread{
         this.conn = conn;
     }
 
-
-
     public void run() {
         ObjectInputStream oin;
         ObjectOutputStream out;
@@ -34,14 +32,16 @@ public class ThreadClient extends Thread{
         } catch (IOException e) {
             return;
         }
+
         Request req;
 
         while (true) {
             try {
                 try {
+                    //Lê o pedido do cliente
                     req = (Request) oin.readObject();
                 }catch(EOFException | SocketException e) {
-                    System.out.println("Cliente da thread ID " + Thread.currentThread().getId() + " fechado.");
+                    System.out.println("\nO cliente da thread com ID " + Thread.currentThread().getId() + " saiu.");
                     socket.close();
                     return;
                 }
@@ -51,16 +51,18 @@ public class ThreadClient extends Thread{
                     return;
                 } else {
                     if (req.getMessage().equalsIgnoreCase("SERVER_REQUEST")){
-                        req.setMessage("Connected to server successfully.");
+                        req.setMessage("\nLigação com o servidor estabelecida.");
                     }
                     else if (req.getMessage().equalsIgnoreCase("CREATE_ACCOUNT")){
-                        System.out.println("REQUEST: " + req.getMessage());
+                        System.out.println("\nPedido do cliente: " + req.getMessage());
                         req.setMessage(createAccount(req.getUsername(), req.getPassword(), req.getName()));
                     }
                     else if (req.getMessage().equalsIgnoreCase("LOGIN")) {
-                        System.out.println("REQUEST: " + req.getMessage());
+                        System.out.println("\nPedido do cliente: " + req.getMessage());
                         req.setMessage(loginUser(req.getUsername(), req.getPassword()));
                     }
+
+                    //Envia resposta ao cliente
                     out.writeUnshared(req);
                     out.flush();
                 }
@@ -70,7 +72,6 @@ public class ThreadClient extends Thread{
             }
         }
     }
-
 
     public String createAccount(String u, String p, String n) throws RemoteException {
         String ans = null;
@@ -88,7 +89,7 @@ public class ThreadClient extends Thread{
 
             boolean newUser = true;
 
-
+            //Verifica se já existe um username igual
             if (size > 0) {
                 while (usernames.next()) {
                     if (u.equalsIgnoreCase(usernames.getString(1))) {
@@ -97,6 +98,7 @@ public class ThreadClient extends Thread{
                         break;
                     }
                 }
+
                 if (newUser) {
                     ps.executeUpdate();
                     ans = "SUCCESS";
@@ -108,30 +110,29 @@ public class ThreadClient extends Thread{
                 ans = "SUCCESS";
             }
 
-
         } catch (SQLException throwables) {
             throwables.printStackTrace();
         }
+
         return ans;
     }
 
     public String loginUser(String u, String p) throws RemoteException {
         String ans = "FAILURE";
-        System.out.println("ok nice");
-
 
         try {
             ResultSet rs = stmt.executeQuery(GET_USERS_QUERY);
+
             while (rs.next()) {
                 if (u.equalsIgnoreCase(rs.getString(3)) && p.equalsIgnoreCase(rs.getString(2))) {
                     ans = "SUCCESS";
                     break;
                 }
             }
-
         }catch(SQLException e){ }
 
-        System.out.println(ans);
+        System.out.println("\n" + ans);
+
         return ans;
     }
 }

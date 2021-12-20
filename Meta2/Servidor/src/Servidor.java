@@ -29,11 +29,9 @@ public class Servidor implements Runnable{
     private static DatagramPacket packet = null;
 
     public Servidor() {
-
     }
 
     public static void main(String[] args) {
-
 
         boolean connected = false;
         Statement stmt;
@@ -43,13 +41,15 @@ public class Servidor implements Runnable{
         ObjectOutputStream oout;
         ObjectInputStream oin;
         String receivedMsg;
-
         int attempt = 0;
+
+        //Verifica se receber os argumentos necessários: IP e do SGBD e opcionamente o IP e porto de escuta do GRDS
         if (args.length < 1 || args.length > 3 || args.length == 2) {
             System.out.println("Sintaxe: java Servidor SGBDaddress GRDSaddress(opcional) GRDSport(opcional) ");
             return;
         }
 
+        //Tentar connectar-se à base de dados
         try {
             Class.forName(JDBC_DRIVER);
 
@@ -61,6 +61,7 @@ public class Servidor implements Runnable{
         }
 
         try {
+            //Cria um DatagramSocket para comunicar com o GRDS
             SocketGRDS = new DatagramSocket();
             SocketGRDS.setSoTimeout(3000);
         } catch(SocketException e) {
@@ -69,7 +70,6 @@ public class Servidor implements Runnable{
 
         while (attempt != 3 && !connected) {
             try {
-
                 if (args.length == 1) {
                     AddrGRDS = InetAddress.getByName("230.30.30.30");
                     PortGRDS = 3030;
@@ -77,22 +77,27 @@ public class Servidor implements Runnable{
                     AddrGRDS = InetAddress.getByName(args[1]);
                     PortGRDS = Integer.parseInt(args[2]);
                 }
-                //Envia mensagem ao GRDS
 
+                //Cria um DatagramPacket e envia-o ao GRDS através do DatagramSocket criado anteriormente
                 packet = new DatagramPacket(ADDR_PORT_REQUEST.getBytes(), ADDR_PORT_REQUEST.length(), AddrGRDS, PortGRDS);
                 SocketGRDS.send(packet);
+
+                //Limpa o packet e recebe resposta do GRDS
                 packet = new DatagramPacket(new byte[MAX_SIZE], MAX_SIZE);
                 SocketGRDS.receive(packet);
+
                 connected = true;
             } catch (SocketTimeoutException e) {
                 attempt++;
-                System.out.println("Nao foi possivel conectar ao GRDS. Tentativas restantes: " + (3 - attempt));
+                System.out.println("\nNão foi possivel estabelecer ligação com o GRDS. Tentativas restantes: " + (3 - attempt));
             } catch (UnknownHostException e) {
-                System.out.println("Endereço desconhecido.");
+                System.out.println("\nEndereço desconhecido.");
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
+
+        //Se não se conseguir conectar com o GRDS, encerra
         if (!connected){
             System.out.println("A desligar servidor...");
             SocketGRDS.close();
@@ -106,35 +111,42 @@ public class Servidor implements Runnable{
 
         try {
             ADDR_PORT_REQUEST = "SERVER_ACTIVE";
-            //Runnable r = new PingGRDS(packet, SocketGRDS, AddrGRDS, PortGRDS);
 
+            //Runnable r = new PingGRDS(packet, SocketGRDS, AddrGRDS, PortGRDS);
             //new Thread(r).start();
 
+            //Cria um ServerSocket para receber os clientes
             listeningSocket = new ServerSocket(SocketGRDS.getLocalPort());
-            System.out.println("Listening on port " + listeningSocket.getLocalPort());
+            System.out.println("\nPorto de escuta: " + listeningSocket.getLocalPort());
 
+            //Lança thread para verificar se a ligação com o GRDS se mantém
             Runnable check = new Servidor();
             new Thread(check).start();
 
+            System.out.println("\nA aguardar por clientes...");
+
             while (true) {
 
-                    System.out.println("Waiting for clients...");
-                    //Começa a aceitar clientes
+                    //Aceita cliente e adiciona-o à lista de sockets
                     nextClient = listeningSocket.accept();
                     listClientSockets.add(nextClient);
+
+                    System.out.println("\nEntrou um novo cliente.");
+
+                    //Lança thread para comunicar com o cliente
                     new ThreadClient(nextClient, stmt, conn).start();
 
             }
         } catch (UnknownHostException e) {
-            System.out.println("Destino desconhecido:\n\t" + e);
+            System.out.println("\nDestino desconhecido:\n\t" + e);
         } catch (NumberFormatException e) {
-            System.out.println("O porto do servidor deve ser um inteiro positivo.");
+            System.out.println("\nO porto de escuta do servidor deve ser um inteiro positivo.");
         } catch (SocketTimeoutException e) {
-            System.out.println("Nao foi recebida qualquer resposta:\n\t"+e);
+            System.out.println("\nNão foi recebida qualquer resposta:\n\t"+e);
         } catch (SocketException e) {
-            System.out.println("Ocorreu um erro ao nivel do socket UDaasdP:\n\t" + e);
+            System.out.println("\nOcorreu um erro ao nível do socket UDP:\n\t" + e);
         } catch (IOException e) {
-            System.out.println("Ocorreu um erro no acesso ao socket:\n\t" + e);
+            System.out.println("\nOcorreu um erro no acesso ao socket:\n\t" + e);
         }
     }
 
@@ -142,6 +154,7 @@ public class Servidor implements Runnable{
         int attempt = 0;
         int cycle = 0;
         String req = "CHECK_GRDS";
+
         while(attempt != 3) {
             try {
                 if (cycle % 10 == 0) req = "CHECK_GRDS";
@@ -149,12 +162,14 @@ public class Servidor implements Runnable{
 
                 packet = new DatagramPacket(req.getBytes(), req.length(), AddrGRDS, PortGRDS);
                 SocketGRDS.send(packet);
+
                 packet = new DatagramPacket(new byte[MAX_SIZE], MAX_SIZE);
                 SocketGRDS.receive(packet);
+
                 attempt = 0;
             } catch (SocketTimeoutException e) {
                 attempt++;
-                System.out.println("Nao foi possivel conectar ao GRDS. Tentativas restantes: " + (3 - attempt));
+                System.out.println("\nNão foi possível estabelecer ligação com o GRDS. Tentativas restantes: " + (3 - attempt));
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -162,7 +177,7 @@ public class Servidor implements Runnable{
         }
         if (attempt == 3){
             ObjectOutputStream out;
-            System.out.println("A fechar servidor...");
+            System.out.println("\nA fechar o servidor...");
 
             try {
                 Thread.sleep(3000);
