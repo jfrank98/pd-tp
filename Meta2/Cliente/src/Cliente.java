@@ -275,7 +275,7 @@ public class Cliente {
 
                     request = (Request) oinS.readObject();
 
-                    System.out.println("\n" + request.getMessage() + "\n");
+                    System.out.println(request.getMessage() + "\n");
                     return true;
                 }
 

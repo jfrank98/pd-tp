@@ -99,7 +99,7 @@ public class Servidor implements Runnable{
 
         //Se não se conseguir conectar com o GRDS, encerra
         if (!connected){
-            System.out.println("A desligar servidor...");
+            System.out.println("\nA desligar o servidor...");
             SocketGRDS.close();
             try {
                 Thread.sleep(3000);
@@ -115,7 +115,7 @@ public class Servidor implements Runnable{
             //Runnable r = new PingGRDS(packet, SocketGRDS, AddrGRDS, PortGRDS);
             //new Thread(r).start();
 
-            //Cria um ServerSocket para receber os clientes
+            //Cria um ServerSocket para comunicar com os clientes
             listeningSocket = new ServerSocket(SocketGRDS.getLocalPort());
             System.out.println("\nPorto de escuta: " + listeningSocket.getLocalPort());
 
