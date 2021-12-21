@@ -1,11 +1,13 @@
 import java.io.Serializable;
 
 public class Request implements Serializable {
+    private int id;
     private String username;
     private String password;
     private String name;
     private String oldUsername;
     private String oldPassword;
+    private String groupName;
     private boolean session = false;
     private String message;
     private boolean serverIsOnline = false;
@@ -34,6 +36,8 @@ public class Request implements Serializable {
         this.name = name;
     }
 
+    public int getID() {return id; }
+
     public String getUsername() {
         return username;
     }
@@ -46,16 +50,20 @@ public class Request implements Serializable {
 
     public String getOldPassword() {return oldPassword; }
 
-    public void setName(String name) {
-        this.name = name;
-    }
-
     public String getPassword() {
         return password;
     }
 
     public String getMessage() {
         return message;
+    }
+
+    public String getGroupName() { return groupName; }
+
+    public void setID(int id) { this.id = id; }
+
+    public void setName(String name) {
+        this.name = name;
     }
 
     public void setMessage(String request) {
@@ -73,6 +81,8 @@ public class Request implements Serializable {
     public void setOldUsername(String oldUsername) { this.oldUsername = oldUsername; }
 
     public void setOldPassword(String oldPassword) {this.oldPassword = oldPassword; }
+
+    public void setGroupName(String groupName) { this.groupName = groupName; }
 
     public void login(String username, String password) {
 

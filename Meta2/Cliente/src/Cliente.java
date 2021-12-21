@@ -172,7 +172,36 @@ public class Cliente {
                                 System.out.println("\n(Aderir a grupo).\n");
                             }
                             else if(option2 == 3){
-                                System.out.println("\n(Criar grupo).\n");
+                                //Criar grupo
+                                request.setMessage("CREATE_GROUP");
+                                request.setGroupName(getNewGroupName());
+
+                                //Tenta enviar pedido de CREATE_GROUP ao servidor
+                                try {
+                                    oout.writeUnshared(request);
+
+                                } catch (SocketException e) {
+                                    System.out.println("\nLigação com o servidor perdida.\nA procurar novo servidor...");
+                                    try {
+                                        Thread.sleep(2000);
+
+                                        if (getNewServer()) continue;
+                                        else {
+                                            System.out.println("\nNão foi possível encontrar um novo servidor/o GRDS fechou.\nA fechar o cliente...\n");
+                                            Thread.sleep(2000);
+                                            return;
+                                        }
+                                    } catch (InterruptedException interruptedException) {
+                                        interruptedException.printStackTrace();
+                                    }
+                                }
+
+                                request = (Request) oinS.readObject();
+                                System.out.println("\n" + request.getMessage());
+
+                                if (request.getMessage().equals("SERVER_OFF")){
+                                    getNewServer();
+                                }
                             }
                             else if(option2 == 4){
                                 System.out.println("\n(Editar grupo).\n");
@@ -226,7 +255,7 @@ public class Cliente {
                                 request = (Request) oinS.readObject();
                                 System.out.println("\n" + request.getMessage());
 
-                                if(request.getMessage().equals("FAILURE")){
+                                if(request.getMessage().equals("FAILURE - Esse username já está a ser usado")){
                                     request.setUsername(request.getOldUsername());
                                 }
                                 else if (request.getMessage().equals("SERVER_OFF")){
@@ -412,6 +441,13 @@ public class Cliente {
         Scanner sc = new Scanner(System.in);
 
         System.out.print("\nNova password: ");
+        return sc.nextLine();
+    }
+
+    public static String getNewGroupName(){
+        Scanner sc = new Scanner(System.in);
+
+        System.out.print("\nNome do grupo: ");
         return sc.nextLine();
     }
 

@@ -7,13 +7,17 @@ import java.net.Socket;
 import java.net.SocketException;
 import java.rmi.RemoteException;
 import java.sql.*;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 
 public class ThreadClient extends Thread{
     private Socket socket;
     private String dbAddress;
     private static final String GET_USERS_QUERY = "SELECT * FROM User;";
-    private static final String COUNT_USERS_QUERY = "SELECT COUNT(*) FROM User;";
     private static final String GET_USERNAMES_QUERY = "SELECT username FROM User;";
+    private static final String GET_GROUPS_QUERY = "SELECT * FROM `Group`;";
+    private static final String COUNT_USERS_QUERY = "SELECT COUNT(*) FROM User;";
+    private static final String COUNT_GROUPS_QUERY = "SELECT COUNT(*) FROM `Group`;";
     private Statement stmt;
     private Connection conn;
 
@@ -57,10 +61,19 @@ public class ThreadClient extends Thread{
                     else if (req.getMessage().equalsIgnoreCase("CREATE_ACCOUNT")){
                         System.out.println("\nPedido do cliente: " + req.getMessage());
                         req.setMessage(createAccount(req.getUsername(), req.getPassword(), req.getName()));
+
+                        if(req.getMessage().equalsIgnoreCase("SUCCESS")){
+                            req.setID(getIDFromDB(req.getUsername()));
+                        }
                     }
                     else if (req.getMessage().equalsIgnoreCase("LOGIN")) {
                         System.out.println("\nPedido do cliente: " + req.getMessage());
                         req.setMessage(loginUser(req.getUsername(), req.getPassword()));
+
+                        if(req.getMessage().equalsIgnoreCase("SUCCESS")){
+                            req.setID(getIDFromDB(req.getUsername()));
+                            req.setName(getNameFromDB(req.getUsername()));
+                        }
                     }
                     else if (req.getMessage().equalsIgnoreCase("CHANGE_USERNAME")){
                         System.out.println("\nPedido do cliente: " + req.getMessage());
@@ -69,6 +82,10 @@ public class ThreadClient extends Thread{
                     else if (req.getMessage().equalsIgnoreCase("CHANGE_PASSWORD")){
                         System.out.println("\nPedido do cliente: " + req.getMessage());
                         req.setMessage(changePassword(req.getUsername(), req.getPassword()));
+                    }
+                    else if (req.getMessage().equalsIgnoreCase("CREATE_GROUP")){
+                        System.out.println("\nPedido do cliente: " + req.getMessage());
+                        req.setMessage(createGroup(req.getGroupName(), req.getID()));
                     }
 
                     //Envia resposta ao cliente
@@ -213,6 +230,89 @@ public class ThreadClient extends Thread{
                 }
             }
         }catch (SQLException e) {
+            System.out.println("\n" + e);
+        }
+
+        System.out.println("Resposta: " + ans);
+
+        return ans;
+    }
+
+    private int getIDFromDB(String u){
+        int id = 0;
+
+        try {
+            ResultSet rs = stmt.executeQuery(GET_USERS_QUERY);
+
+            while (rs.next()) {
+                if (u.equalsIgnoreCase(rs.getString(3))) {
+                    id = rs.getInt(1);
+                    break;
+                }
+            }
+        }catch(SQLException e){
+            System.out.println("\n" + e);
+        }
+        return id;
+    }
+
+    private String getNameFromDB(String u){
+        String name = null;
+
+        try {
+            ResultSet rs = stmt.executeQuery(GET_USERS_QUERY);
+
+            while (rs.next()) {
+                if (u.equalsIgnoreCase(rs.getString(3))) {
+                    name = rs.getString(4);
+                    break;
+                }
+            }
+        }catch(SQLException e){
+            System.out.println("\n" + e);
+        }
+        return name;
+    }
+
+    public String createGroup(String n, int id){
+        String ans = "FAILURE";
+
+        try {
+            PreparedStatement ps = conn.prepareStatement("INSERT INTO `Group` (create_date, group_name, admin) VALUES (?, ?, ?);");
+            ps.setDate(1, Date.valueOf(LocalDate.now()));
+            ps.setString(2, n);
+            ps.setInt(3, id);
+
+            ResultSet rs = stmt.executeQuery(COUNT_GROUPS_QUERY);
+            rs.next();
+            int size = rs.getInt(1);
+
+            ResultSet rs2 = stmt.executeQuery(GET_GROUPS_QUERY);
+
+            boolean newGroup = true;
+
+            //Verifica se já tem um grupo com o mesmo nome
+            if (size > 0) {
+                while (rs2.next()) {
+                    if (n.equalsIgnoreCase(rs2.getString(3)) && id == rs2.getInt(4)) {
+                        ans = "FAILURE - Já tem um grupo com esse nome";
+                        newGroup = false;
+                        break;
+                    }
+                }
+
+                if (newGroup) {
+                    ps.executeUpdate();
+                    ans = "SUCCESS";
+                }
+            }
+
+            else {
+                ps.executeUpdate();
+                ans = "SUCCESS";
+            }
+
+        } catch (SQLException e) {
             System.out.println("\n" + e);
         }
 
