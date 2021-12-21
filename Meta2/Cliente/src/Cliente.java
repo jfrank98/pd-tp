@@ -100,7 +100,7 @@ public class Cliente {
 
             request = (Request) oinS.readObject();
 
-            System.out.println("\n" + request.getMessage() + "\n");
+            System.out.println(request.getMessage() + "\n");
 
 //            Runnable r = new Cliente();
 //            new Thread(r).start();
@@ -109,7 +109,7 @@ public class Cliente {
 
 
                 if (!request.isSession()) {
-                    System.out.println("1 - Iniciar sessão");
+                    System.out.println("\n1 - Iniciar sessão");
                     System.out.println("2 - Criar conta");
                 } else{
                     System.out.println("1 - Alterar username");

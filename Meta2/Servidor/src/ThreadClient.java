@@ -62,10 +62,11 @@ public class ThreadClient extends Thread{
                         System.out.println("\nPedido do cliente: " + req.getMessage());
                         req.setMessage(loginUser(req.getUsername(), req.getPassword()));
                     }
-                    else if(req.getMessage().equalsIgnoreCase("CHANGE_USERNAME")){
-                        req.setMessage(changeUsername(req.getUsername(), req.getOldUsername()));
+                    else if (req.getMessage().equalsIgnoreCase("CHANGE_USERNAME")){
+                        System.out.println("\nPedido do cliente: " + req.getMessage());
+                        req.setMessage(changeUsername(req.getUsername(), req.getOldUsername(), req.getPassword()));
                     }
-                    else if(req.getMessage().equalsIgnoreCase("CHANGE_PASSWORD")){
+                    else if (req.getMessage().equalsIgnoreCase("CHANGE_PASSWORD")){
                         System.out.println("\nPedido do cliente: " + req.getMessage());
                         req.setMessage(changePassword(req.getUsername(), req.getPassword()));
                     }
@@ -122,6 +123,8 @@ public class ThreadClient extends Thread{
             e.printStackTrace();
         }
 
+        System.out.println("Resposta: " + ans);
+
         return ans;
     }
 
@@ -141,28 +144,29 @@ public class ThreadClient extends Thread{
             e.printStackTrace();
         }
 
-        System.out.println("\n" + ans);
+        System.out.println("Resposta: " + ans);
 
         return ans;
     }
 
-    public String changeUsername(String n, String o) {
+    public String changeUsername(String u, String o, String p) {
         String ans = "FAILURE";
         boolean exists = false;
 
         try {
-            PreparedStatement ps = conn.prepareStatement("UPDATE User SET username = ? WHERE username = ?");
-            ps.setString(1, n);
+            PreparedStatement ps = conn.prepareStatement("UPDATE User SET username = ? WHERE username = ? AND password = ?");
+            ps.setString(1, u);
             ps.setString(2, o);
+            ps.setString(3, p);
 
             ResultSet rs = stmt.executeQuery(GET_USERS_QUERY);
             ResultSet usernames = stmt.executeQuery(GET_USERNAMES_QUERY);
 
             while (rs.next()) {
-                if (o.equalsIgnoreCase(rs.getString(3))) {
+                if (o.equalsIgnoreCase(rs.getString(4)) && p.equalsIgnoreCase(rs.getString(2))) {
                     //vê se o username já existe
                     while (rs.next()) {
-                        if (n.equalsIgnoreCase(usernames.getString(1))) {
+                        if (u.equalsIgnoreCase(usernames.getString(1))) {
                             exists = true;
                             break;
                         }
@@ -183,6 +187,8 @@ public class ThreadClient extends Thread{
         }catch (SQLException e) {
             e.printStackTrace();
         }
+
+        System.out.println("Resposta: " + ans);
 
         return ans;
     }
@@ -208,6 +214,8 @@ public class ThreadClient extends Thread{
         }catch (SQLException e) {
             e.printStackTrace();
         }
+
+        System.out.println("Resposta: " + ans);
 
         return ans;
     }
