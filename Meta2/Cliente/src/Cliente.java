@@ -107,7 +107,6 @@ public class Cliente {
 
             while (true) {
 
-
                 if (!request.isSession()) {
                     System.out.println("\n1 - Iniciar sessão");
                     System.out.println("2 - Criar conta");
@@ -118,6 +117,7 @@ public class Cliente {
 
                 System.out.println("3 - Sair");
                 System.out.print("\nOpção: ");
+
                 while (!sc.hasNextInt());
                 option = sc.nextInt();
 
@@ -216,6 +216,7 @@ public class Cliente {
                         //Tenta enviar pedido de LOGIN ao servidor
                         try {
                             oout.writeUnshared(request);
+                            System.out.println("\ntentativa de login com: " + request.getUsername() + " " + request.getPassword());
 
                         } catch (SocketException e) {
                             System.out.println("\nLigação com o servidor perdida.\nA procurar novo servidor...");
