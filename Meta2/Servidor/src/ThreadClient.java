@@ -76,7 +76,7 @@ public class ThreadClient extends Thread{
                     out.flush();
                 }
             } catch (IOException | ClassNotFoundException e) {
-                e.printStackTrace();
+                System.out.println("\n" + e);
                 return;
             }
         }
@@ -102,7 +102,7 @@ public class ThreadClient extends Thread{
             if (size > 0) {
                 while (usernames.next()) {
                     if (u.equalsIgnoreCase(usernames.getString(1))) {
-                        ans = "FAILURE";
+                        ans = "FAILURE - Esse username já está a ser usado";
                         newUser = false;
                         break;
                     }
@@ -120,7 +120,7 @@ public class ThreadClient extends Thread{
             }
 
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.out.println("\n" + e);
         }
 
         System.out.println("Resposta: " + ans);
@@ -141,7 +141,7 @@ public class ThreadClient extends Thread{
                 }
             }
         }catch(SQLException e){
-            e.printStackTrace();
+            System.out.println("\n" + e);
         }
 
         System.out.println("Resposta: " + ans);
@@ -160,12 +160,13 @@ public class ThreadClient extends Thread{
             ps.setString(3, p);
 
             ResultSet rs = stmt.executeQuery(GET_USERS_QUERY);
-            ResultSet usernames = stmt.executeQuery(GET_USERNAMES_QUERY);
+            Statement stmt2 = conn.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
+            ResultSet usernames = stmt2.executeQuery(GET_USERNAMES_QUERY);
 
             while (rs.next()) {
-                if (o.equalsIgnoreCase(rs.getString(4)) && p.equalsIgnoreCase(rs.getString(2))) {
+                if (o.equalsIgnoreCase(rs.getString(3)) && p.equalsIgnoreCase(rs.getString(2))) {
                     //vê se o username já existe
-                    while (rs.next()) {
+                    while (usernames.next()) {
                         if (u.equalsIgnoreCase(usernames.getString(1))) {
                             exists = true;
                             break;
@@ -178,14 +179,14 @@ public class ThreadClient extends Thread{
                         ans = "SUCCESS";
                     }
                     else{
-                        ans = "FAILURE";
+                        ans = "FAILURE - Esse username já está a ser usado";
                     }
 
                     break;
                 }
             }
         }catch (SQLException e) {
-            e.printStackTrace();
+            System.out.println("\n" + e);
         }
 
         System.out.println("Resposta: " + ans);
@@ -212,7 +213,7 @@ public class ThreadClient extends Thread{
                 }
             }
         }catch (SQLException e) {
-            e.printStackTrace();
+            System.out.println("\n" + e);
         }
 
         System.out.println("Resposta: " + ans);

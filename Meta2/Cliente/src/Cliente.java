@@ -81,6 +81,7 @@ public class Cliente {
         Scanner sc = new Scanner(System.in);
         ArrayList<String> credentials = new ArrayList<>(3);
         int option = 0;
+        int option2 = 0;
 
         //Tenta conectar-se ao servidor
         try {
@@ -111,11 +112,12 @@ public class Cliente {
                     System.out.println("\n1 - Iniciar sessão");
                     System.out.println("2 - Criar conta");
                 } else{
-                    System.out.println("1 - Alterar username");
-                    System.out.println("2 - Alterar password");
+                    System.out.println("\n1 - Contactos");
+                    System.out.println("2 - Grupos");
+                    System.out.println("3 - Definições");
                 }
 
-                System.out.println("3 - Sair");
+                System.out.println("0 - Sair");
                 System.out.print("\nOpção: ");
 
                 while (!sc.hasNextInt());
@@ -123,78 +125,157 @@ public class Cliente {
 
                 if(request.isSession()){
                     if(option == 1){
-                        //Alterar username
-                        request.setMessage("CHANGE_USERNAME");
-                        request.setOldUsername(request.getUsername());
-                        request.setUsername(getNewUsername());
+                        //Contactos
+                        do{
+                            System.out.println("\n1 - Lista de contactos");
+                            System.out.println("2 - Adicionar contacto");
+                            System.out.println("3 - Eliminar contacto");
+                            System.out.println("0 - Voltar");
 
-                        //Tenta enviar pedido de CHANGE_USERNAME ao servidor
-                        try {
-                            oout.writeUnshared(request);
+                            System.out.print("\nOpção: ");
+                            while (!sc.hasNextInt());
+                            option2 = sc.nextInt();
 
-                        } catch (SocketException e) {
-                            System.out.println("\nLigação com o servidor perdida.\nA procurar novo servidor...");
-                            try {
-                                Thread.sleep(2000);
-
-                                if (getNewServer()) continue;
-                                else {
-                                    System.out.println("\nNão foi possível encontrar um novo servidor/o GRDS fechou.\nA fechar o cliente...\n");
-                                    Thread.sleep(2000);
-                                    return;
-                                }
-                            } catch (InterruptedException interruptedException) {
-                                interruptedException.printStackTrace();
+                            if(option2 == 1){
+                                System.out.println("\n(Lista de contactos).\n");
                             }
-                        }
-
-                        request = (Request) oinS.readObject();
-                        System.out.println("\n" + request.getMessage() + "\n");
-
-                        if(request.getMessage().equals("FAILURE")){
-                            request.setUsername(request.getOldUsername());
-                        }
-                        else if (request.getMessage().equals("SERVER_OFF")){
-                            getNewServer();
-                        }
+                            else if(option2 == 2){
+                                System.out.println("\n(Adicionar contacto).\n");
+                            }
+                            else if(option2 == 3){
+                                System.out.println("\n(Eliminar contacto).\n");
+                            }
+                            else if(option2 != 0){
+                                //Opção inválida
+                                System.out.println("\nOpção inválida.");
+                            }
+                        } while(option2 != 0);
                     }
                     else if(option == 2){
-                        //Alterar password
-                        request.setMessage("CHANGE_PASSWORD");
-                        request.setOldPassword(request.getPassword());
-                        request.setPassword(getNewPassword());
+                        //Grupos
+                        do{
+                            System.out.println("\n1 - Meus grupos");
+                            System.out.println("2 - Aderir a grupo");
+                            System.out.println("3 - Criar grupo");
+                            System.out.println("4 - Editar grupo");
+                            System.out.println("5 - Sair de um grupo");
+                            System.out.println("0 - Voltar");
 
-                        //Tenta enviar pedido de CHANGE_PASSWORD ao servidor
-                        try {
-                            oout.writeUnshared(request);
+                            System.out.print("\nOpção: ");
+                            while (!sc.hasNextInt());
+                            option2 = sc.nextInt();
 
-                        } catch (SocketException e) {
-                            System.out.println("\nLigação com o servidor perdida.\nA procurar novo servidor...");
-                            try {
-                                Thread.sleep(2000);
-
-                                if (getNewServer()) continue;
-                                else {
-                                    System.out.println("\nNão foi possível encontrar um novo servidor/o GRDS fechou.\nA fechar o cliente...\n");
-                                    Thread.sleep(2000);
-                                    return;
-                                }
-                            } catch (InterruptedException interruptedException) {
-                                interruptedException.printStackTrace();
+                            if(option2 == 1){
+                                System.out.println("\n(Meus grupos).\n");
                             }
-                        }
-
-                        request = (Request) oinS.readObject();
-                        System.out.println("\n" + request.getMessage() + "\n");
-
-                        if(request.getMessage().equals("FAILURE")){
-                            request.setPassword(request.getOldPassword());
-                        }
-                        else if (request.getMessage().equals("SERVER_OFF")){
-                            getNewServer();
-                        }
+                            else if(option2 == 2){
+                                System.out.println("\n(Aderir a grupo).\n");
+                            }
+                            else if(option2 == 3){
+                                System.out.println("\n(Criar grupo).\n");
+                            }
+                            else if(option2 == 4){
+                                System.out.println("\n(Editar grupo).\n");
+                            }
+                            else if(option2 == 5){
+                                System.out.println("\n(Sair de um grupo).\n");
+                            }
+                            else if(option2 != 0){
+                                //Opção inválida
+                                System.out.println("\nOpção inválida.");
+                            }
+                        } while(option2 != 0);
                     }
                     else if(option == 3){
+                        //Definições
+                        do{
+                            System.out.println("\n1 - Alterar username");
+                            System.out.println("2 - Alterar password");
+                            System.out.println("0 - Voltar");
+
+                            System.out.print("\nOpção: ");
+                            while (!sc.hasNextInt());
+                            option2 = sc.nextInt();
+
+                            if(option2 == 1){
+                                //Alterar username
+                                request.setMessage("CHANGE_USERNAME");
+                                request.setOldUsername(request.getUsername());
+                                request.setUsername(getNewUsername());
+
+                                //Tenta enviar pedido de CHANGE_USERNAME ao servidor
+                                try {
+                                    oout.writeUnshared(request);
+
+                                } catch (SocketException e) {
+                                    System.out.println("\nLigação com o servidor perdida.\nA procurar novo servidor...");
+                                    try {
+                                        Thread.sleep(2000);
+
+                                        if (getNewServer()) continue;
+                                        else {
+                                            System.out.println("\nNão foi possível encontrar um novo servidor/o GRDS fechou.\nA fechar o cliente...\n");
+                                            Thread.sleep(2000);
+                                            return;
+                                        }
+                                    } catch (InterruptedException interruptedException) {
+                                        interruptedException.printStackTrace();
+                                    }
+                                }
+
+                                request = (Request) oinS.readObject();
+                                System.out.println("\n" + request.getMessage());
+
+                                if(request.getMessage().equals("FAILURE")){
+                                    request.setUsername(request.getOldUsername());
+                                }
+                                else if (request.getMessage().equals("SERVER_OFF")){
+                                    getNewServer();
+                                }
+                            }
+                            else if(option2 == 2){
+                                //Alterar password
+                                request.setMessage("CHANGE_PASSWORD");
+                                request.setOldPassword(request.getPassword());
+                                request.setPassword(getNewPassword());
+
+                                //Tenta enviar pedido de CHANGE_PASSWORD ao servidor
+                                try {
+                                    oout.writeUnshared(request);
+
+                                } catch (SocketException e) {
+                                    System.out.println("\nLigação com o servidor perdida.\nA procurar novo servidor...");
+                                    try {
+                                        Thread.sleep(2000);
+
+                                        if (getNewServer()) continue;
+                                        else {
+                                            System.out.println("\nNão foi possível encontrar um novo servidor/o GRDS fechou.\nA fechar o cliente...\n");
+                                            Thread.sleep(2000);
+                                            return;
+                                        }
+                                    } catch (InterruptedException interruptedException) {
+                                        interruptedException.printStackTrace();
+                                    }
+                                }
+
+                                request = (Request) oinS.readObject();
+                                System.out.println("\n" + request.getMessage());
+
+                                if(request.getMessage().equals("FAILURE")){
+                                    request.setPassword(request.getOldPassword());
+                                }
+                                else if (request.getMessage().equals("SERVER_OFF")){
+                                    getNewServer();
+                                }
+                            }
+                            else if(option2 != 0){
+                                //Opção inválida
+                                System.out.println("\nOpção inválida.");
+                            }
+                        } while(option2 != 0);
+                    }
+                    else if(option == 0){
                         //Sair
                         SocketGRDS.close();
                         socket.close();
@@ -235,7 +316,7 @@ public class Cliente {
                         }
 
                         request = (Request) oinS.readObject();
-                        System.out.println("\n" + request.getMessage() + "\n");
+                        System.out.println("\n" + request.getMessage());
 
                         if (request.getMessage().equals("SUCCESS")) {
                             request.setSession(true);
@@ -286,7 +367,7 @@ public class Cliente {
                             request.setSession(true);
                         }
                     }
-                    else if(option == 3){
+                    else if(option == 0){
                         //Sair
                         SocketGRDS.close();
                         socket.close();
