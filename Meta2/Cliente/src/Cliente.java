@@ -138,9 +138,38 @@ public class Cliente {
 
                             if(option2 == 1){
                                 System.out.println("\n(Lista de contactos).\n");
+                                //Ver lista de contactos
                             }
                             else if(option2 == 2){
-                                System.out.println("\n(Adicionar contacto).\n");
+                                //Adicionar contacto
+                                request.setMessage("ADD_CONTACT");
+                                request.setNewContact(getNewUsername());
+
+                                try {
+                                    oout.writeUnshared(request);
+
+                                } catch (SocketException e) {
+                                    System.out.println("\nLigação com o servidor perdida.\nA procurar novo servidor...");
+                                    try {
+                                        Thread.sleep(2000);
+
+                                        if (getNewServer()) continue;
+                                        else {
+                                            System.out.println("\nNão foi possível encontrar um novo servidor/o GRDS fechou.\nA fechar o cliente...\n");
+                                            Thread.sleep(2000);
+                                            return;
+                                        }
+                                    } catch (InterruptedException interruptedException) {
+                                        interruptedException.printStackTrace();
+                                    }
+                                }
+
+                                request = (Request) oinS.readObject();
+                                System.out.println("\n" + request.getMessage());
+
+                                if (request.getMessage().equals("SERVER_OFF")){
+                                    getNewServer();
+                                }
                             }
                             else if(option2 == 3){
                                 System.out.println("\n(Eliminar contacto).\n");
@@ -167,9 +196,39 @@ public class Cliente {
 
                             if(option2 == 1){
                                 System.out.println("\n(Meus grupos).\n");
+                                //Listar os meus grupos
                             }
                             else if(option2 == 2){
-                                System.out.println("\n(Aderir a grupo).\n");
+                                //Aderir a um grupo
+                                request.setMessage("JOIN_GROUP");
+                                request.setGroupName(getNewGroupName());
+
+                                //Tenta enviar pedido de JOIN_GROUP ao servidor
+                                try {
+                                    oout.writeUnshared(request);
+
+                                } catch (SocketException e) {
+                                    System.out.println("\nLigação com o servidor perdida.\nA procurar novo servidor...");
+                                    try {
+                                        Thread.sleep(2000);
+
+                                        if (getNewServer()) continue;
+                                        else {
+                                            System.out.println("\nNão foi possível encontrar um novo servidor/o GRDS fechou.\nA fechar o cliente...\n");
+                                            Thread.sleep(2000);
+                                            return;
+                                        }
+                                    } catch (InterruptedException interruptedException) {
+                                        interruptedException.printStackTrace();
+                                    }
+                                }
+
+                                request = (Request) oinS.readObject();
+                                System.out.println("\n" + request.getMessage());
+
+                                if (request.getMessage().equals("SERVER_OFF")){
+                                    getNewServer();
+                                }
                             }
                             else if(option2 == 3){
                                 //Criar grupo
@@ -433,7 +492,11 @@ public class Cliente {
     public static String getNewUsername(){
         Scanner sc = new Scanner(System.in);
 
-        System.out.print("\nNovo username: ");
+        if(request.getMessage().equalsIgnoreCase("ADD_CONTACT"))
+            System.out.print("\nNovo contacto: ");
+        else
+            System.out.print("\nNovo username: ");
+
         return sc.nextLine();
     }
 

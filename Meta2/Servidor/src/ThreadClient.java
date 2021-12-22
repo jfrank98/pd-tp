@@ -16,6 +16,7 @@ public class ThreadClient extends Thread{
     private static final String GET_USERS_QUERY = "SELECT * FROM User;";
     private static final String GET_USERNAMES_QUERY = "SELECT username FROM User;";
     private static final String GET_GROUPS_QUERY = "SELECT * FROM `Group`;";
+    private static final String GET_CONTACTS_QUERY = "SELECT * FROM usercontact;";
     private static final String COUNT_USERS_QUERY = "SELECT COUNT(*) FROM User;";
     private static final String COUNT_GROUPS_QUERY = "SELECT COUNT(*) FROM `Group`;";
     private Statement stmt;
@@ -55,11 +56,12 @@ public class ThreadClient extends Thread{
                     socket.close();
                     return;
                 } else {
+                    System.out.println("\nPedido do cliente: " + req.getMessage());
+
                     if (req.getMessage().equalsIgnoreCase("SERVER_REQUEST")){
                         req.setMessage("\nLigação com o servidor estabelecida.");
                     }
                     else if (req.getMessage().equalsIgnoreCase("CREATE_ACCOUNT")){
-                        System.out.println("\nPedido do cliente: " + req.getMessage());
                         req.setMessage(createAccount(req.getUsername(), req.getPassword(), req.getName()));
 
                         if(req.getMessage().equalsIgnoreCase("SUCCESS")){
@@ -67,7 +69,6 @@ public class ThreadClient extends Thread{
                         }
                     }
                     else if (req.getMessage().equalsIgnoreCase("LOGIN")) {
-                        System.out.println("\nPedido do cliente: " + req.getMessage());
                         req.setMessage(loginUser(req.getUsername(), req.getPassword()));
 
                         if(req.getMessage().equalsIgnoreCase("SUCCESS")){
@@ -76,16 +77,19 @@ public class ThreadClient extends Thread{
                         }
                     }
                     else if (req.getMessage().equalsIgnoreCase("CHANGE_USERNAME")){
-                        System.out.println("\nPedido do cliente: " + req.getMessage());
                         req.setMessage(changeUsername(req.getUsername(), req.getOldUsername(), req.getPassword()));
                     }
                     else if (req.getMessage().equalsIgnoreCase("CHANGE_PASSWORD")){
-                        System.out.println("\nPedido do cliente: " + req.getMessage());
                         req.setMessage(changePassword(req.getUsername(), req.getPassword()));
                     }
+                    else if (req.getMessage().equalsIgnoreCase("ADD_CONTACT")){
+                        req.setMessage(addContact(req.getNewContact(), req.getID()));
+                    }
                     else if (req.getMessage().equalsIgnoreCase("CREATE_GROUP")){
-                        System.out.println("\nPedido do cliente: " + req.getMessage());
                         req.setMessage(createGroup(req.getGroupName(), req.getID()));
+                    }
+                    else if (req.getMessage().equalsIgnoreCase("JOIN_GROUP")){
+                        req.setMessage(joinGroup(req.getGroupName(), req.getID()));
                     }
 
                     //Envia resposta ao cliente
@@ -274,6 +278,44 @@ public class ThreadClient extends Thread{
         return name;
     }
 
+    public String addContact(String u, int id){
+        String ans = "FAILURE";
+        int contactID = 0;
+
+        try {
+            ResultSet rs = stmt.executeQuery(GET_USERS_QUERY);
+
+            while (rs.next()) {
+                if (u.equalsIgnoreCase(rs.getString(3))) {
+                    contactID = rs.getInt(1);
+                    break;
+                }
+            }
+
+            Statement stmt2 = conn.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
+            ResultSet contact = stmt2.executeQuery(GET_CONTACTS_QUERY);
+
+            while(contact.next()){
+                if(id == contact.getInt(1) && contactID == contact.getInt(2)){
+                    ans = "FAILURE - Já tem este contacto adicionado";
+                    return ans;
+                }
+            }
+
+            PreparedStatement ps = conn.prepareStatement("INSERT INTO usercontact (user_id, contact_id) VALUES (?, ?)");
+            ps.setInt(1, id);
+            ps.setInt(2, contactID);
+
+            ps.executeUpdate();
+            ans = "SUCCESS";
+
+        }catch(SQLException e){
+            System.out.println("\n" + e);
+        }
+
+        return ans;
+    }
+
     public String createGroup(String n, int id){
         String ans = "FAILURE";
 
@@ -317,6 +359,14 @@ public class ThreadClient extends Thread{
         }
 
         System.out.println("Resposta: " + ans);
+
+        return ans;
+    }
+
+    public String joinGroup(String n, int id){
+        String ans = "FAILURE";
+
+
 
         return ans;
     }
