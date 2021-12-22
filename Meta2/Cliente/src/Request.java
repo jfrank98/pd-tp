@@ -1,4 +1,5 @@
 import java.io.Serializable;
+import java.util.ArrayList;
 
 public class Request implements Serializable {
     private int id;
@@ -12,7 +13,7 @@ public class Request implements Serializable {
     private boolean session = false;
     private String message;
     private boolean serverIsOnline = false;
-
+    private ArrayList<String> listaContactos = new ArrayList<>();
     public static final long serialVersionUID = 1L;
 
     public Request(String s, String s1) {
@@ -63,6 +64,8 @@ public class Request implements Serializable {
 
     public String getNewContact() { return newContact; }
 
+    public ArrayList<String> getListaContactos() { return listaContactos; }
+
     public void setID(int id) { this.id = id; }
 
     public void setName(String name) {
@@ -91,6 +94,10 @@ public class Request implements Serializable {
 
     public void login(String username, String password) {
 
+    }
+
+    public void addContactSuccess(String newContact) {
+        listaContactos.add(newContact);
     }
 
     public void createAccount() {

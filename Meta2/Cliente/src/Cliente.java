@@ -138,6 +138,10 @@ public class Cliente {
 
                             if(option2 == 1){
                                 System.out.println("\n(Lista de contactos).\n");
+
+                                for (String contacto : request.getListaContactos()) {
+                                    System.out.println(contacto);
+                                }
                                 //Ver lista de contactos
                             }
                             else if(option2 == 2){
@@ -145,24 +149,7 @@ public class Cliente {
                                 request.setMessage("ADD_CONTACT");
                                 request.setNewContact(getNewUsername());
 
-                                try {
-                                    oout.writeUnshared(request);
-
-                                } catch (SocketException e) {
-                                    System.out.println("\nLigação com o servidor perdida.\nA procurar novo servidor...");
-                                    try {
-                                        Thread.sleep(2000);
-
-                                        if (getNewServer()) continue;
-                                        else {
-                                            System.out.println("\nNão foi possível encontrar um novo servidor/o GRDS fechou.\nA fechar o cliente...\n");
-                                            Thread.sleep(2000);
-                                            return;
-                                        }
-                                    } catch (InterruptedException interruptedException) {
-                                        interruptedException.printStackTrace();
-                                    }
-                                }
+                                sendMessage(request, oout);
 
                                 request = (Request) oinS.readObject();
                                 System.out.println("\n" + request.getMessage());
@@ -204,24 +191,7 @@ public class Cliente {
                                 request.setGroupName(getNewGroupName());
 
                                 //Tenta enviar pedido de JOIN_GROUP ao servidor
-                                try {
-                                    oout.writeUnshared(request);
-
-                                } catch (SocketException e) {
-                                    System.out.println("\nLigação com o servidor perdida.\nA procurar novo servidor...");
-                                    try {
-                                        Thread.sleep(2000);
-
-                                        if (getNewServer()) continue;
-                                        else {
-                                            System.out.println("\nNão foi possível encontrar um novo servidor/o GRDS fechou.\nA fechar o cliente...\n");
-                                            Thread.sleep(2000);
-                                            return;
-                                        }
-                                    } catch (InterruptedException interruptedException) {
-                                        interruptedException.printStackTrace();
-                                    }
-                                }
+                                sendMessage(request, oout);
 
                                 request = (Request) oinS.readObject();
                                 System.out.println("\n" + request.getMessage());
@@ -236,24 +206,7 @@ public class Cliente {
                                 request.setGroupName(getNewGroupName());
 
                                 //Tenta enviar pedido de CREATE_GROUP ao servidor
-                                try {
-                                    oout.writeUnshared(request);
-
-                                } catch (SocketException e) {
-                                    System.out.println("\nLigação com o servidor perdida.\nA procurar novo servidor...");
-                                    try {
-                                        Thread.sleep(2000);
-
-                                        if (getNewServer()) continue;
-                                        else {
-                                            System.out.println("\nNão foi possível encontrar um novo servidor/o GRDS fechou.\nA fechar o cliente...\n");
-                                            Thread.sleep(2000);
-                                            return;
-                                        }
-                                    } catch (InterruptedException interruptedException) {
-                                        interruptedException.printStackTrace();
-                                    }
-                                }
+                                sendMessage(request, oout);
 
                                 request = (Request) oinS.readObject();
                                 System.out.println("\n" + request.getMessage());
@@ -292,24 +245,7 @@ public class Cliente {
                                 request.setUsername(getNewUsername());
 
                                 //Tenta enviar pedido de CHANGE_USERNAME ao servidor
-                                try {
-                                    oout.writeUnshared(request);
 
-                                } catch (SocketException e) {
-                                    System.out.println("\nLigação com o servidor perdida.\nA procurar novo servidor...");
-                                    try {
-                                        Thread.sleep(2000);
-
-                                        if (getNewServer()) continue;
-                                        else {
-                                            System.out.println("\nNão foi possível encontrar um novo servidor/o GRDS fechou.\nA fechar o cliente...\n");
-                                            Thread.sleep(2000);
-                                            return;
-                                        }
-                                    } catch (InterruptedException interruptedException) {
-                                        interruptedException.printStackTrace();
-                                    }
-                                }
 
                                 request = (Request) oinS.readObject();
                                 System.out.println("\n" + request.getMessage());
@@ -322,30 +258,14 @@ public class Cliente {
                                 }
                             }
                             else if(option2 == 2){
+
                                 //Alterar password
                                 request.setMessage("CHANGE_PASSWORD");
                                 request.setOldPassword(request.getPassword());
                                 request.setPassword(getNewPassword());
 
                                 //Tenta enviar pedido de CHANGE_PASSWORD ao servidor
-                                try {
-                                    oout.writeUnshared(request);
-
-                                } catch (SocketException e) {
-                                    System.out.println("\nLigação com o servidor perdida.\nA procurar novo servidor...");
-                                    try {
-                                        Thread.sleep(2000);
-
-                                        if (getNewServer()) continue;
-                                        else {
-                                            System.out.println("\nNão foi possível encontrar um novo servidor/o GRDS fechou.\nA fechar o cliente...\n");
-                                            Thread.sleep(2000);
-                                            return;
-                                        }
-                                    } catch (InterruptedException interruptedException) {
-                                        interruptedException.printStackTrace();
-                                    }
-                                }
+                                sendMessage(request, oout);
 
                                 request = (Request) oinS.readObject();
                                 System.out.println("\n" + request.getMessage());
@@ -358,6 +278,7 @@ public class Cliente {
                                 }
                             }
                             else if(option2 != 0){
+
                                 //Opção inválida
                                 System.out.println("\nOpção inválida.");
                             }
@@ -383,25 +304,7 @@ public class Cliente {
                         request.setPassword(credentials.get(1));
 
                         //Tenta enviar pedido de LOGIN ao servidor
-                        try {
-                            oout.writeUnshared(request);
-                            System.out.println("\ntentativa de login com: " + request.getUsername() + " " + request.getPassword());
-
-                        } catch (SocketException e) {
-                            System.out.println("\nLigação com o servidor perdida.\nA procurar novo servidor...");
-                            try {
-                                Thread.sleep(2000);
-
-                                if (getNewServer()) continue;
-                                else {
-                                    System.out.println("\nNão foi possível encontrar um novo servidor/o GRDS fechou.\nA fechar o cliente...\n");
-                                    Thread.sleep(2000);
-                                    return;
-                                }
-                            } catch (InterruptedException interruptedException) {
-                                interruptedException.printStackTrace();
-                            }
-                        }
+                        sendMessage(request, oout);
 
                         request = (Request) oinS.readObject();
                         System.out.println("\n" + request.getMessage());
@@ -422,25 +325,7 @@ public class Cliente {
                         request.setName(credentials.get(2));
 
                         //Tenta enviar pedido de CREATE_ACCOUNT ao servidor
-                        try {
-                            oout.writeUnshared(request);
-
-                        } catch (SocketException e) {
-                            System.out.println("\nLigação com o servidor perdida.\nA procurar novo servidor...");
-
-                            try {
-                                Thread.sleep(2000);
-
-                                if (getNewServer()) continue;
-                                else {
-                                    System.out.println("\nNão foi possível encontrar um novo servidor/o GRDS fechou.\nA fechar cliente...\n");
-                                    Thread.sleep(2000);
-                                    return;
-                                }
-                            } catch (InterruptedException interruptedException) {
-                                interruptedException.printStackTrace();
-                            }
-                        }
+                        sendMessage(request, oout);
 
                         request = (Request) oinS.readObject();
                         System.out.println("\n" + request.getMessage() + "\n");
@@ -474,7 +359,27 @@ public class Cliente {
         }
     }
 
+    public static void sendMessage(Request req, ObjectOutputStream oout) throws IOException {
+        try {
+            oout.writeUnshared(req);
+        } catch (SocketException e) {
+            System.out.println("\nLigação com o servidor perdida.\nA procurar novo servidor...");
+            try {
+                Thread.sleep(2000);
+
+                if (!getNewServer()) {
+                    System.out.println("\nNão foi possível encontrar um novo servidor/o GRDS fechou.\nA fechar o cliente...\n");
+                    Thread.sleep(2000);
+                    return;
+                }
+            } catch (InterruptedException interruptedException) {
+                interruptedException.printStackTrace();
+            }
+        }
+    }
+
     public static void getUserCredentials(ArrayList<String> cred, String message) {
+        cred.clear();
         Scanner sc = new Scanner(System.in);
 
         System.out.print("\nUsername: ");

@@ -1,4 +1,5 @@
 import java.io.Serializable;
+import java.util.ArrayList;
 
 public class Request implements Serializable {
     private int id;
@@ -6,12 +7,13 @@ public class Request implements Serializable {
     private String password;
     private String name;
     private String oldUsername;
+    private String oldPassword;
     private String groupName;
     private String newContact;
     private boolean session = false;
     private String message;
     private boolean serverIsOnline = false;
-
+    private ArrayList<String> listaContactos = new ArrayList<>();
     public static final long serialVersionUID = 1L;
 
     public Request(String s, String s1) {
@@ -48,6 +50,8 @@ public class Request implements Serializable {
 
     public String getOldUsername() { return oldUsername; }
 
+    public String getOldPassword() {return oldPassword; }
+
     public String getPassword() {
         return password;
     }
@@ -59,6 +63,8 @@ public class Request implements Serializable {
     public String getGroupName() { return groupName; }
 
     public String getNewContact() { return newContact; }
+
+    public ArrayList<String> getListaContactos() { return listaContactos; }
 
     public void setID(int id) { this.id = id; }
 
@@ -80,10 +86,18 @@ public class Request implements Serializable {
 
     public void setOldUsername(String oldUsername) { this.oldUsername = oldUsername; }
 
+    public void setOldPassword(String oldPassword) {this.oldPassword = oldPassword; }
+
+    public void setGroupName(String groupName) { this.groupName = groupName; }
+
     public void setNewContact(String username) { this.newContact = username; }
 
     public void login(String username, String password) {
 
+    }
+
+    public void addContactSuccess(String newContact) {
+        listaContactos.add(newContact);
     }
 
     public void createAccount() {

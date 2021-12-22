@@ -16,7 +16,7 @@ public class ThreadClient extends Thread{
     private static final String GET_USERS_QUERY = "SELECT * FROM User;";
     private static final String GET_USERNAMES_QUERY = "SELECT username FROM User;";
     private static final String GET_GROUPS_QUERY = "SELECT * FROM `Group`;";
-    private static final String GET_CONTACTS_QUERY = "SELECT * FROM usercontact;";
+    private static final String GET_CONTACTS_QUERY = "SELECT * FROM UserContact;";
     private static final String COUNT_USERS_QUERY = "SELECT COUNT(*) FROM User;";
     private static final String COUNT_GROUPS_QUERY = "SELECT COUNT(*) FROM `Group`;";
     private Statement stmt;
@@ -84,6 +84,9 @@ public class ThreadClient extends Thread{
                     }
                     else if (req.getMessage().equalsIgnoreCase("ADD_CONTACT")){
                         req.setMessage(addContact(req.getNewContact(), req.getID()));
+                        if (req.getMessage().equalsIgnoreCase("SUCCESS")){
+                            req.addContactSuccess(req.getNewContact());
+                        }
                     }
                     else if (req.getMessage().equalsIgnoreCase("CREATE_GROUP")){
                         req.setMessage(createGroup(req.getGroupName(), req.getID()));
@@ -91,6 +94,7 @@ public class ThreadClient extends Thread{
                     else if (req.getMessage().equalsIgnoreCase("JOIN_GROUP")){
                         req.setMessage(joinGroup(req.getGroupName(), req.getID()));
                     }
+
 
                     //Envia resposta ao cliente
                     out.writeUnshared(req);
@@ -302,7 +306,7 @@ public class ThreadClient extends Thread{
                 }
             }
 
-            PreparedStatement ps = conn.prepareStatement("INSERT INTO usercontact (user_id, contact_id) VALUES (?, ?)");
+            PreparedStatement ps = conn.prepareStatement("INSERT INTO UserContact (user_id, contact_id) VALUES (?, ?)");
             ps.setInt(1, id);
             ps.setInt(2, contactID);
 
