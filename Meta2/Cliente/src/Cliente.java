@@ -160,6 +160,7 @@ public class Cliente {
                             }
                             else if(option2 == 3){
                                 System.out.println("\n(Eliminar contacto).\n");
+                                //FAZER
                             }
                             else if(option2 != 0){
                                 //Opção inválida

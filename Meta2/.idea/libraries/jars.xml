@@ -1,0 +1,11 @@
+<component name="libraryTable">
+  <library name="jars">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/executables/jars/Cliente.jar!/" />
+      <root url="jar://$PROJECT_DIR$/executables/jars/GRDS.jar!/" />
+      <root url="jar://$PROJECT_DIR$/executables/jars/Servidor.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

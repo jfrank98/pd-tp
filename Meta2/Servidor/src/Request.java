@@ -100,6 +100,8 @@ public class Request implements Serializable {
         listaContactos.add(newContact);
     }
 
+    public void removeContactSuccess(int contactIndex) {listaContactos.remove(contactIndex);}
+
     public void createAccount() {
     }
 }

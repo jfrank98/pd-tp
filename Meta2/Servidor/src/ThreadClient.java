@@ -87,6 +87,10 @@ public class ThreadClient extends Thread{
                         if (req.getMessage().equalsIgnoreCase("SUCCESS")){
                             req.addContactSuccess(req.getNewContact());
                         }
+                    }else if (req.getMessage().equalsIgnoreCase("REMOVE_CONTACT")){
+                        req.setMessage(removeContact(req.getNewContact(), req.getID()));
+                        if(req.getMessage().equalsIgnoreCase("SUCCESS"))
+                            ;//req.removeContactSuccess(req.getContactIdex());
                     }
                     else if (req.getMessage().equalsIgnoreCase("CREATE_GROUP")){
                         req.setMessage(createGroup(req.getGroupName(), req.getID()));
@@ -315,8 +319,45 @@ public class ThreadClient extends Thread{
 
         }catch(SQLException e){
             System.out.println("\n" + e);
+
         }
 
+        return ans;
+    }
+
+    public String removeContact(String user, int id){
+        String ans = "FAILURE";
+        int contactId=0;
+        try{
+            ResultSet rs = stmt.executeQuery(GET_USERS_QUERY);
+
+            while (rs.next()) {
+                if (user.equalsIgnoreCase(rs.getString(3))) {
+                    contactId = rs.getInt(1);
+                    break;
+                }
+            }
+
+
+            Statement stmt2 = conn.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
+            ResultSet contact = stmt2.executeQuery(GET_CONTACTS_QUERY);
+
+            while(contact.next()){
+                if(id != contact.getInt(1) || contactId != contact.getInt(2))
+                {
+                    ans = "FAILURE - Não tem este contacto adicionado.";
+                    return ans;
+                }
+                PreparedStatement ps = conn.prepareStatement("DELETE FROM UserContact WHERE user_id=? AND contact_id=?");
+                ps.setInt(1, id);
+                ps.setInt(2, contactId);
+
+                ps.executeUpdate();
+                ans = "SUCCESS";
+            }
+        } catch (SQLException e) {
+            System.out.println("\n" + e);
+        }
         return ans;
     }
 
