@@ -9,11 +9,15 @@ public class Request implements Serializable {
     private String oldUsername;
     private String oldPassword;
     private String groupName;
-    private String newContact;
+    private String oldGroupName;
+    private String Contact;
     private boolean session = false;
     private String message;
     private boolean serverIsOnline = false;
     private ArrayList<String> listaContactos = new ArrayList<>();
+    private ArrayList<String> listaGrupos = new ArrayList<>();
+    private ArrayList<String> listaGruposAdmin = new ArrayList<>();
+    private ArrayList<String> listaMembros = new ArrayList<>();
     public static final long serialVersionUID = 1L;
 
     public Request(String s, String s1) {
@@ -62,9 +66,17 @@ public class Request implements Serializable {
 
     public String getGroupName() { return groupName; }
 
-    public String getNewContact() { return newContact; }
+    public String getOldGroupName() { return oldGroupName; }
+
+    public String getContact() { return Contact; }
 
     public ArrayList<String> getListaContactos() { return listaContactos; }
+
+    public ArrayList<String> getListaGrupos() { return listaGrupos; }
+
+    public ArrayList<String> getListaGruposAdmin() { return  listaGruposAdmin; }
+
+    public ArrayList<String> getListaMembros() { return listaMembros; }
 
     public void setID(int id) { this.id = id; }
 
@@ -90,7 +102,9 @@ public class Request implements Serializable {
 
     public void setGroupName(String groupName) { this.groupName = groupName; }
 
-    public void setNewContact(String username) { this.newContact = username; }
+    public void setOldGroupName(String oldGroupName) { this.oldGroupName = oldGroupName; }
+
+    public void setContact(String username) { this.Contact = username; }
 
     public void login(String username, String password) {
 
@@ -99,6 +113,20 @@ public class Request implements Serializable {
     public void addContactSuccess(String newContact) {
         listaContactos.add(newContact);
     }
+
+    public void removeContactSuccess(String contact) { listaContactos.remove(contact); }
+
+    public void addGroupSuccess(String newGroup) { listaGrupos.add(newGroup); }
+
+    public void leaveGroupSuccess(String group) { listaGrupos.remove(group); }
+
+    public void addGroupAdminSuccess(String groupName) { listaGruposAdmin.add(groupName); }
+
+    public void deleteGroupSuccess(String groupName) { listaGruposAdmin.remove(groupName); }
+
+    public void addMemberSuccess(String member) { listaMembros.add(member); }
+
+    public void deleteMemberSuccess(String member) { listaMembros.remove(member); }
 
     public void createAccount() {
     }

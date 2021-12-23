@@ -82,6 +82,7 @@ public class Cliente {
         ArrayList<String> credentials = new ArrayList<>(3);
         int option = 0;
         int option2 = 0;
+        int option3 = 0;
 
         //Tenta conectar-se ao servidor
         try {
@@ -149,7 +150,7 @@ public class Cliente {
                                     System.out.println("\nNão tem contactos na sua lista.");
                                 }
                                 else {
-                                    System.out.println("\nLista de contactos:\n");
+                                    System.out.println("\nLista de contactos:");
                                     for (String contacto : request.getListaContactos()) {
                                         System.out.println("- " + contacto);
                                     }
@@ -162,7 +163,7 @@ public class Cliente {
                             else if(option2 == 2){
                                 //Adicionar contacto
                                 request.setMessage("ADD_CONTACT");
-                                request.setNewContact(getNewUsername());
+                                request.setContact(getNewUsername());
 
                                 //Tentar enviar pedido de ADD_CONTACT ao servidor
                                 sendMessage(request, oout);
@@ -175,7 +176,19 @@ public class Cliente {
                                 }
                             }
                             else if(option2 == 3){
-                                System.out.println("\n(Eliminar contacto).\n");
+                                //Eliminar contacto
+                                request.setMessage("REMOVE_CONTACT");
+                                request.setContact(getNewUsername());
+
+                                //Tentar enviar pedido de REMOVE_CONTACT ao servidor
+                                sendMessage(request, oout);
+
+                                request = (Request) oinS.readObject();
+                                System.out.println("\n" + request.getMessage());
+
+                                if (request.getMessage().equals("SERVER_OFF")){
+                                    getNewServer();
+                                }
                             }
                             else if(option2 != 0){
                                 //Opção inválida
@@ -198,8 +211,27 @@ public class Cliente {
                             option2 = sc.nextInt();
 
                             if(option2 == 1){
-                                System.out.println("\n(Meus grupos).\n");
                                 //Listar os meus grupos
+                                request.setMessage("LIST_GROUPS");
+
+                                //Tentar enviar pedido de LIST_GROUPS ao servidor
+                                sendMessage(request, oout);
+
+                                request = (Request) oinS.readObject();
+
+                                if(request.getListaGrupos().size() == 0){
+                                    System.out.println("\nNão pertence a nenhum grupo.");
+                                }
+                                else {
+                                    System.out.println("\nOs meus grupos:");
+                                    for (String grupo : request.getListaGrupos()) {
+                                        System.out.println("- " + grupo);
+                                    }
+                                }
+
+                                if (request.getMessage().equals("SERVER_OFF")){
+                                    getNewServer();
+                                }
                             }
                             else if(option2 == 2){
                                 //Aderir a um grupo
@@ -232,10 +264,117 @@ public class Cliente {
                                 }
                             }
                             else if(option2 == 4){
-                                System.out.println("\n(Editar grupo).\n");
+                                //Editar grupo
+                                //limpar listas
+                                request.getListaGruposAdmin().clear();
+                                request.getListaMembros().clear();
+
+                                //Listar os grupos dos quais é admin
+                                request.setMessage("LIST_ADMIN_GROUPS");
+
+                                //Tentar enviar pedido de LIST_ADMIN_GROUPS ao servidor
+                                sendMessage(request, oout);
+
+                                request = (Request) oinS.readObject();
+
+                                if(request.getListaGruposAdmin().size() == 0){
+                                    System.out.println("\nNão é administrador de nenhum grupo.");
+                                    continue;
+                                }
+                                else {
+                                    System.out.println("\nAdministrador dos grupos:");
+                                    for (String grupo : request.getListaGruposAdmin()) {
+                                        System.out.println("- " + grupo);
+                                    }
+                                }
+
+                                if (request.getMessage().equals("SERVER_OFF")){
+                                    getNewServer();
+                                }
+
+                                //Listar membros do grupo
+                                request.setMessage("LIST_MEMBERS_GROUP");
+                                request.setGroupName(getNewGroupName());
+
+                                //Tentar enviar pedido de LIST_MEMBERS_GROUP ao servidor
+                                sendMessage(request, oout);
+
+                                request = (Request) oinS.readObject();
+
+                                if(request.getMessage().equals("FAILURE - Não é administrador de nenhum grupo com esse nome.")){
+                                    System.out.println("\n" + request.getMessage());
+                                    continue;
+                                }
+                                else {
+                                    System.out.println("\nMembros do grupo '" + request.getGroupName() + "':");
+
+                                    for (String membro : request.getListaMembros()) {
+                                        System.out.println("- " + membro);
+                                    }
+                                }
+
+                                if (request.getMessage().equals("SERVER_OFF")){
+                                    getNewServer();
+                                }
+
+                                do{
+                                    System.out.println("\n1 - Alterar nome do grupo");
+                                    System.out.println("2 - Remover membro");
+                                    System.out.println("3 - Eliminar grupo");
+                                    System.out.println("0 - Voltar");
+
+                                    System.out.print("\nOpção: ");
+                                    while (!sc.hasNextInt());
+                                    option3 = sc.nextInt();
+
+                                    if(option3 == 1){
+                                        //Alterar nome do grupo
+                                        request.setMessage("CHANGE_GROUP_NAME");
+                                        request.setOldGroupName(request.getGroupName());
+                                        request.setGroupName(getNewGroupName());
+
+                                        //Tenta enviar pedido de CHANGE_GROUP_NAME ao servidor
+                                        sendMessage(request, oout);
+
+                                        request = (Request) oinS.readObject();
+                                        System.out.println("\n" + request.getMessage());
+
+                                        if(request.getMessage().equals("FAILURE - Já tem um grupo com esse nome.")){
+                                            request.setGroupName(request.getOldGroupName());
+                                        }
+                                        else if (request.getMessage().equals("SERVER_OFF")){
+                                            getNewServer();
+                                        }
+                                        break;
+                                    }
+                                    else if(option3 == 2){
+                                        //Remover membro
+                                        request.setMessage("REMOVE_MEMBER");
+                                    }
+                                    else if(option3 == 3){
+                                        //Eliminar grupo
+                                        request.setMessage("DELETE_GROUP");
+                                    }
+                                    else if(option3 != 0){
+                                        //Opção inválida
+                                        System.out.println("\nOpção inválida.");
+                                    }
+                                } while (option3 != 0);
                             }
                             else if(option2 == 5){
-                                System.out.println("\n(Sair de um grupo).\n");
+                                //Sair de um grupo
+                                request.setMessage("LEAVE_GROUP");
+                                request.setGroupName(getNewGroupName());
+
+                                //Tentar enviar pedido de LEAVE_GROUP ao servidor
+                                sendMessage(request, oout);
+
+                                request = (Request) oinS.readObject();
+                                System.out.println("\n" + request.getMessage());
+
+                                if (request.getMessage().equals("SERVER_OFF")){
+                                    getNewServer();
+                                }
                             }
                             else if(option2 != 0){
                                 //Opção inválida
@@ -411,8 +550,8 @@ public class Cliente {
     public static String getNewUsername(){
         Scanner sc = new Scanner(System.in);
 
-        if(request.getMessage().equalsIgnoreCase("ADD_CONTACT"))
-            System.out.print("\nNovo contacto: ");
+        if(request.getMessage().equalsIgnoreCase("ADD_CONTACT") || request.getMessage().equalsIgnoreCase("REMOVE_CONTACT"))
+            System.out.print("\nNome contacto: ");
         else
             System.out.print("\nNovo username: ");
 
@@ -429,7 +568,13 @@ public class Cliente {
     public static String getNewGroupName(){
         Scanner sc = new Scanner(System.in);
 
-        System.out.print("\nNome do grupo: ");
+        if(request.getMessage().equalsIgnoreCase("LIST_MEMBERS_GROUP"))
+            System.out.print("\nGrupo a editar: ");
+        else if (request.getMessage().equalsIgnoreCase("CHANGE_GROUP_NAME"))
+            System.out.print("\nNovo nome para o grupo: ");
+        else
+            System.out.print("\nNome do grupo: ");
+
         return sc.nextLine();
     }
 

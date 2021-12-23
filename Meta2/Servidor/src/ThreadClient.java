@@ -19,11 +19,18 @@ public class ThreadClient extends Thread{
     private static final String GET_USERNAMES_QUERY = "SELECT username FROM User;";
     private static final String GET_GROUPS_QUERY = "SELECT * FROM `Group`;";
     private static final String GET_CONTACTS_QUERY = "SELECT * FROM UserContact;";
+    private static final String GET_USERINGROUP_QUERY = "SELECT * FROM Useringroup;";
     private static final String COUNT_USERS_QUERY = "SELECT COUNT(*) FROM User;";
     private static final String COUNT_GROUPS_QUERY = "SELECT COUNT(*) FROM `Group`;";
     private Statement stmt;
     private Connection conn;
     private ArrayList<String> listaC = new ArrayList<>();
+    private ArrayList<String> listaG = new ArrayList<>();
+    private ArrayList<String> listaGAmin = new ArrayList<>();
+    private ArrayList<String> listaM = new ArrayList<>();
+    private int contactID;
+    private int groupID;
+    private int adminID;
 
     public ThreadClient(Socket clientSocket, Statement stmt, Connection conn) {
         this.socket = clientSocket;
@@ -94,16 +101,56 @@ public class ThreadClient extends Thread{
                         }
                     }
                     else if (req.getMessage().equalsIgnoreCase("ADD_CONTACT")){
-                        req.setMessage(addContact(req.getNewContact(), req.getID()));
-//                        if (req.getMessage().equalsIgnoreCase("SUCCESS")){
-//                            req.addContactSuccess(req.getNewContact());
-//                        }
+                        req.setMessage(addContact(req.getContact(), req.getID()));
                     }
-                    else if (req.getMessage().equalsIgnoreCase("CREATE_GROUP")){
-                        req.setMessage(createGroup(req.getGroupName(), req.getID()));
+                    else if (req.getMessage().equalsIgnoreCase("REMOVE_CONTACT")){
+                        req.setMessage(removeContact(req.getContact(), req.getID()));
+
+                        if(req.getMessage().equalsIgnoreCase("SUCCESS")){
+                            req.removeContactSuccess(String.valueOf(contactID));
+                        }
+                    }
+                    else if (req.getMessage().equalsIgnoreCase("LIST_GROUPS")){
+                        req.getListaGrupos().clear();
+                        req.setMessage(listGroups(req.getID()));
+
+                        for (String g : listaG) {
+                            req.addGroupSuccess(g);
+                        }
                     }
                     else if (req.getMessage().equalsIgnoreCase("JOIN_GROUP")){
                         req.setMessage(joinGroup(req.getGroupName(), req.getID()));
+                    }
+                    else if (req.getMessage().equalsIgnoreCase("CREATE_GROUP")){
+                        req.setMessage(createGroup(req.getGroupName(), req.getID()));
+
+                        joinGroup(req.getGroupName(), req.getID());
+                    }
+                    else if (req.getMessage().equalsIgnoreCase("LIST_ADMIN_GROUPS")){
+                        req.setMessage(listGroupsAdmin(req.getID()));
+
+                        for (String g : listaGAmin) {
+                            req.addGroupAdminSuccess(g);
+                        }
+                    }
+                    else if (req.getMessage().equalsIgnoreCase("LIST_MEMBERS_GROUP")){
+                        req.setMessage(listMembers(req.getGroupName(), req.getID()));
+
+                        if(req.getMessage().equals("SUCCESS")){
+                            for (String m : listaM) {
+                                req.addMemberSuccess(m);
+                            }
+                        }
+                    }
+                    else if (req.getMessage().equalsIgnoreCase("CHANGE_GROUP_NAME")){
+                        req.setMessage(changeGroupName(req.getOldGroupName(), req.getGroupName(), req.getID()));
+                    }
+                    else if (req.getMessage().equalsIgnoreCase("LEAVE_GROUP")){
+                        req.setMessage(leaveGroup(req.getGroupName(), req.getID()));
+
+                        if(req.getMessage().equalsIgnoreCase("SUCCESS")){
+                            req.leaveGroupSuccess(String.valueOf(groupID));
+                        }
                     }
 
 
@@ -159,8 +206,6 @@ public class ThreadClient extends Thread{
             System.out.println("\n" + e);
         }
 
-        System.out.println("Resposta: " + ans);
-
         return ans;
     }
 
@@ -179,8 +224,6 @@ public class ThreadClient extends Thread{
         }catch(SQLException e){
             System.out.println("\n" + e);
         }
-
-        System.out.println("Resposta: " + ans);
 
         return ans;
     }
@@ -225,8 +268,6 @@ public class ThreadClient extends Thread{
             System.out.println("\n" + e);
         }
 
-        System.out.println("Resposta: " + ans);
-
         return ans;
     }
 
@@ -251,8 +292,6 @@ public class ThreadClient extends Thread{
         }catch (SQLException e) {
             System.out.println("\n" + e);
         }
-
-        System.out.println("Resposta: " + ans);
 
         return ans;
     }
@@ -305,11 +344,10 @@ public class ThreadClient extends Thread{
             Statement stmt2 = conn.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
 
             while (rs.next()) {
-                //System.out.println("\ncontact ID: " + rs.getInt(2));
-                //rs2 = stmt2.executeQuery("SELECT * FROM User WHERE user_id = " + rs.getInt(2));
-                //contacto = rs2.getString(3);
-                //System.out.println("contact name: " + contacto + "\n");
-                listaC.add(String.valueOf(rs.getInt(2)));
+                rs2 = stmt2.executeQuery("SELECT * FROM User WHERE user_id = " + rs.getInt(2));
+                rs2.next();
+                contacto = rs2.getString(3);
+                listaC.add(contacto);
             }
 
             ans = "SUCCESS";
@@ -322,7 +360,8 @@ public class ThreadClient extends Thread{
 
     public String addContact(String u, int id){
         String ans = "FAILURE";
-        int contactID = 0;
+        boolean encontrou = false;
+        contactID = 0;
 
         try {
             ResultSet rs = stmt.executeQuery(GET_USERS_QUERY);
@@ -335,9 +374,14 @@ public class ThreadClient extends Thread{
                         ans = "FAILURE - Não pode adicionar o seu próprio contacto.";
                         return ans;
                     }
-
+                    encontrou = true;
                     break;
                 }
+            }
+
+            if(!encontrou){
+                ans = "FAILURE - Esse contacto não existe";
+                return ans;
             }
 
             Statement stmt2 = conn.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
@@ -353,6 +397,118 @@ public class ThreadClient extends Thread{
             PreparedStatement ps = conn.prepareStatement("INSERT INTO UserContact (user_id, contact_id) VALUES (?, ?)");
             ps.setInt(1, id);
             ps.setInt(2, contactID);
+
+            ps.executeUpdate();
+            ans = "SUCCESS";
+
+        }catch(SQLException e){
+            System.out.println("\n" + e);
+        }
+
+        return ans;
+    }
+
+    public String removeContact(String u, int id){
+        String ans = "FAILURE";
+        boolean encontrou = false;
+
+        try {
+            ResultSet rs = stmt.executeQuery(GET_USERS_QUERY);
+
+            while (rs.next()) {
+                if (u.equalsIgnoreCase(rs.getString(3))) {
+                    contactID = rs.getInt(1);
+                    encontrou = true;
+                    break;
+                }
+            }
+
+            if(!encontrou || contactID == id){
+                ans = "FAILURE - Esse contacto não existe na sua lista.";
+                return ans;
+            }
+
+            PreparedStatement ps = conn.prepareStatement("DELETE FROM UserContact WHERE user_id = ? AND contact_id = ?");
+            ps.setInt(1, id);
+            ps.setInt(2, contactID);
+
+            PreparedStatement ps2 = conn.prepareStatement("DELETE FROM UserContact WHERE user_id = ? AND contact_id = ?");
+            ps2.setInt(1, contactID);
+            ps2.setInt(2, id);
+
+            ps.executeUpdate();
+            ps2.executeUpdate();
+            ans = "SUCCESS";
+
+        }catch(SQLException e){
+            System.out.println("\n" + e);
+        }
+
+        return ans;
+    }
+
+    public String listGroups(int id){
+        String ans = "FAILURE";
+        String grupo = "";
+
+        listaG.clear();
+
+        try {
+            ResultSet rs = stmt.executeQuery("SELECT * FROM useringroup WHERE group_user_id = " + id);
+            ResultSet rs2;
+            Statement stmt2 = conn.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
+
+            while (rs.next()) {
+                rs2 = stmt2.executeQuery("SELECT * FROM `Group` WHERE group_id = " + rs.getInt(1));
+                rs2.next();
+                grupo = rs2.getString(3);
+                listaG.add(grupo);
+            }
+
+            ans = "SUCCESS";
+        }catch(SQLException e){
+            System.out.println("\n" + e);
+        }
+
+        return ans;
+    }
+
+    public String joinGroup(String n, int id){
+        String ans = "FAILURE";
+        boolean encontrou = false;
+        adminID = 0;
+
+        try {
+            ResultSet rs = stmt.executeQuery(GET_GROUPS_QUERY);
+
+            while (rs.next()) {
+                if (n.equalsIgnoreCase(rs.getString(3))) {
+                    groupID = rs.getInt(1);
+                    adminID = rs.getInt(4);
+                    encontrou = true;
+                    break;
+                }
+            }
+
+            if(!encontrou){
+                ans = "FAILURE - Esse grupo não existe";
+                return ans;
+            }
+
+            Statement stmt2 = conn.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
+            ResultSet group = stmt2.executeQuery(GET_USERINGROUP_QUERY);
+
+            while(group.next()){
+                if(id == group.getInt(3) && groupID == group.getInt(1)){
+                    ans = "FAILURE - Já pertence a esse grupo";
+                    return ans;
+                }
+            }
+
+            PreparedStatement ps = conn.prepareStatement("INSERT INTO useringroup (group_group_id, group_admin, group_user_id) VALUES (?, ?, ?)");
+            ps.setInt(1, groupID);
+            ps.setInt(2, adminID);
+            ps.setInt(3, id);
 
             ps.executeUpdate();
             ans = "SUCCESS";
@@ -406,15 +562,164 @@ public class ThreadClient extends Thread{
             System.out.println("\n" + e);
         }
 
-        System.out.println("Resposta: " + ans);
+        return ans;
+    }
+
+    public String listGroupsAdmin(int id){
+        String ans = "FAILURE";
+        String grupo = "";
+
+        listaGAmin.clear();
+
+        try {
+            ResultSet rs = stmt.executeQuery("SELECT * FROM `Group` WHERE admin = " + id);
+            ResultSet rs2;
+            Statement stmt2 = conn.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
+
+            while (rs.next()) {
+                rs2 = stmt2.executeQuery("SELECT * FROM `Group` WHERE group_id = " + rs.getInt(1));
+                rs2.next();
+                grupo = rs2.getString(3);
+                listaGAmin.add(grupo);
+            }
+
+            ans = "SUCCESS";
+        }catch(SQLException e){
+            System.out.println("\n" + e);
+        }
 
         return ans;
     }
 
-    public String joinGroup(String n, int id){
+    public String listMembers(String g, int id){
         String ans = "FAILURE";
+        boolean encontrou = false;
+        groupID = 0;
+        String membro = "";
+
+        listaM.clear();
+
+        try {
+            ResultSet rs = stmt.executeQuery("SELECT * FROM `Group` WHERE admin = " + id);
+
+            while(rs.next()){
+                if(g.equalsIgnoreCase(rs.getString(3))){
+                    groupID = rs.getInt(1);
+                    encontrou = true;
+                    break;
+                }
+            }
+
+            if(!encontrou){
+                ans = "FAILURE - Não é administrador de nenhum grupo com esse nome.";
+                return ans;
+            }
 
 
+            ResultSet rs2;
+            Statement stmt2 = conn.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
+            rs2 = stmt2.executeQuery("SELECT * FROM useringroup WHERE group_group_id = " + groupID);
+
+            ResultSet rs3;
+            Statement stmt3 = conn.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
+
+            while (rs2.next()) {
+
+                rs3 = stmt3.executeQuery("SELECT * FROM User WHERE user_id = " + rs2.getInt(3));
+                rs3.next();
+                membro = rs3.getString(3);
+
+                listaM.add(membro);
+            }
+
+            ans = "SUCCESS";
+        }catch(SQLException e){
+            System.out.println("\n" + e);
+        }
+
+        return ans;
+    }
+
+    public String changeGroupName(String o, String n, int id){
+        String ans = "FAILURE";
+        boolean exists = false;
+
+        try {
+            PreparedStatement ps = conn.prepareStatement("UPDATE `Group` SET group_name = ? WHERE group_name = ? AND admin = ?");
+            ps.setString(1, n);
+            ps.setString(2, o);
+            ps.setInt(3, id);
+
+            ResultSet rs = stmt.executeQuery(GET_GROUPS_QUERY);
+            Statement stmt2 = conn.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
+            ResultSet groups = stmt2.executeQuery("SELECT * FROM `Group` WHERE admin = " + id);
+
+            while (rs.next()) {
+                if (o.equalsIgnoreCase(rs.getString(3)) && id == rs.getInt(4)) {
+                    //vê se o user já é admin de um grupo com este nome
+                    while (groups.next()) {
+                        if (n.equalsIgnoreCase(groups.getString(3))) {
+                            exists = true;
+                            break;
+                        }
+                    }
+
+                    if(!exists){
+                        //altera nome do grupo na base de dados
+                        ps.executeUpdate();
+                        ans = "SUCCESS";
+                    }
+                    else{
+                        ans = "FAILURE - Já tem um grupo com esse nome.";
+                    }
+
+                    break;
+                }
+            }
+        }catch (SQLException e) {
+            System.out.println("\n" + e);
+        }
+
+        return ans;
+    }
+
+    public String leaveGroup(String n, int id){
+        String ans = "FAILURE";
+        boolean encontrou = false;
+        adminID = 0;
+
+        try {
+            ResultSet rs = stmt.executeQuery(GET_GROUPS_QUERY);
+
+            while (rs.next()) {
+                if (n.equalsIgnoreCase(rs.getString(3))) {
+                    groupID = rs.getInt(1);
+                    adminID = rs.getInt(4);
+                    encontrou = true;
+                    break;
+                }
+            }
+
+            if(!encontrou){
+                ans = "FAILURE - Não pertence a nenhum grupo com esse nome.";
+                return ans;
+            }
+
+            if(id == adminID){
+                ans = "FAILURE - É administrador deste grupo, para poder sair tem que o eliminar.";
+                return ans;
+            }
+
+            PreparedStatement ps = conn.prepareStatement("DELETE FROM useringroup WHERE group_user_id = ? AND group_group_id = ?");
+            ps.setInt(1, id);
+            ps.setInt(2, groupID);
+
+            ps.executeUpdate();
+            ans = "SUCCESS";
+
+        }catch(SQLException e){
+            System.out.println("\n" + e);
+        }
 
         return ans;
     }
