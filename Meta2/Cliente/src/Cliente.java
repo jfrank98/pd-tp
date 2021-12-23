@@ -137,18 +137,34 @@ public class Cliente {
                             option2 = sc.nextInt();
 
                             if(option2 == 1){
-                                System.out.println("\n(Lista de contactos).\n");
-
-                                for (String contacto : request.getListaContactos()) {
-                                    System.out.println(contacto);
-                                }
                                 //Ver lista de contactos
+                                request.setMessage("LIST_CONTACTS");
+
+                                //Tentar enviar pedido de LIST_CONTACTS ao servidor
+                                sendMessage(request, oout);
+
+                                request = (Request) oinS.readObject();
+
+                                if(request.getListaContactos().size() == 0){
+                                    System.out.println("\nNão tem contactos na sua lista.");
+                                }
+                                else {
+                                    System.out.println("\nLista de contactos:\n");
+                                    for (String contacto : request.getListaContactos()) {
+                                        System.out.println("- " + contacto);
+                                    }
+                                }
+
+                                if (request.getMessage().equals("SERVER_OFF")){
+                                    getNewServer();
+                                }
                             }
                             else if(option2 == 2){
                                 //Adicionar contacto
                                 request.setMessage("ADD_CONTACT");
                                 request.setNewContact(getNewUsername());
 
+                                //Tentar enviar pedido de ADD_CONTACT ao servidor
                                 sendMessage(request, oout);
 
                                 request = (Request) oinS.readObject();
@@ -245,7 +261,7 @@ public class Cliente {
                                 request.setUsername(getNewUsername());
 
                                 //Tenta enviar pedido de CHANGE_USERNAME ao servidor
-
+                                sendMessage(request, oout);
 
                                 request = (Request) oinS.readObject();
                                 System.out.println("\n" + request.getMessage());
@@ -258,7 +274,6 @@ public class Cliente {
                                 }
                             }
                             else if(option2 == 2){
-
                                 //Alterar password
                                 request.setMessage("CHANGE_PASSWORD");
                                 request.setOldPassword(request.getPassword());
@@ -278,7 +293,6 @@ public class Cliente {
                                 }
                             }
                             else if(option2 != 0){
-
                                 //Opção inválida
                                 System.out.println("\nOpção inválida.");
                             }

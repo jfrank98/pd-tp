@@ -9,6 +9,8 @@ import java.rmi.RemoteException;
 import java.sql.*;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Arrays;
 
 public class ThreadClient extends Thread{
     private Socket socket;
@@ -21,6 +23,7 @@ public class ThreadClient extends Thread{
     private static final String COUNT_GROUPS_QUERY = "SELECT COUNT(*) FROM `Group`;";
     private Statement stmt;
     private Connection conn;
+    private ArrayList<String> listaC = new ArrayList<>();
 
     public ThreadClient(Socket clientSocket, Statement stmt, Connection conn) {
         this.socket = clientSocket;
@@ -82,11 +85,19 @@ public class ThreadClient extends Thread{
                     else if (req.getMessage().equalsIgnoreCase("CHANGE_PASSWORD")){
                         req.setMessage(changePassword(req.getUsername(), req.getPassword()));
                     }
+                    else if (req.getMessage().equalsIgnoreCase("LIST_CONTACTS")){
+                        req.getListaContactos().clear();
+                        req.setMessage(listContacts(req.getID()));
+
+                        for (String c : listaC) {
+                            req.addContactSuccess(c);
+                        }
+                    }
                     else if (req.getMessage().equalsIgnoreCase("ADD_CONTACT")){
                         req.setMessage(addContact(req.getNewContact(), req.getID()));
-                        if (req.getMessage().equalsIgnoreCase("SUCCESS")){
-                            req.addContactSuccess(req.getNewContact());
-                        }
+//                        if (req.getMessage().equalsIgnoreCase("SUCCESS")){
+//                            req.addContactSuccess(req.getNewContact());
+//                        }
                     }
                     else if (req.getMessage().equalsIgnoreCase("CREATE_GROUP")){
                         req.setMessage(createGroup(req.getGroupName(), req.getID()));
@@ -282,6 +293,33 @@ public class ThreadClient extends Thread{
         return name;
     }
 
+    public String listContacts(int id){
+        String ans = "FAILURE";
+        String contacto = "";
+
+        listaC.clear();
+
+        try {
+            ResultSet rs = stmt.executeQuery("SELECT * FROM UserContact WHERE user_id = " + id);
+            ResultSet rs2;
+            Statement stmt2 = conn.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
+
+            while (rs.next()) {
+                //System.out.println("\ncontact ID: " + rs.getInt(2));
+                //rs2 = stmt2.executeQuery("SELECT * FROM User WHERE user_id = " + rs.getInt(2));
+                //contacto = rs2.getString(3);
+                //System.out.println("contact name: " + contacto + "\n");
+                listaC.add(String.valueOf(rs.getInt(2)));
+            }
+
+            ans = "SUCCESS";
+        }catch(SQLException e){
+            System.out.println("\n" + e);
+        }
+
+        return ans;
+    }
+
     public String addContact(String u, int id){
         String ans = "FAILURE";
         int contactID = 0;
@@ -292,6 +330,12 @@ public class ThreadClient extends Thread{
             while (rs.next()) {
                 if (u.equalsIgnoreCase(rs.getString(3))) {
                     contactID = rs.getInt(1);
+
+                    if(contactID == id){
+                        ans = "FAILURE - Não pode adicionar o seu próprio contacto.";
+                        return ans;
+                    }
+
                     break;
                 }
             }
