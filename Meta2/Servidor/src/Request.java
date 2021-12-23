@@ -10,6 +10,7 @@ public class Request implements Serializable {
     private String oldPassword;
     private String groupName;
     private String newContact;
+    private int contactToRemoveIndex;
     private boolean session = false;
     private String message;
     private boolean serverIsOnline = false;
@@ -64,6 +65,8 @@ public class Request implements Serializable {
 
     public String getNewContact() { return newContact; }
 
+    public int getContactToRemoveIndex(){return contactToRemoveIndex;}
+
     public ArrayList<String> getListaContactos() { return listaContactos; }
 
     public void setID(int id) { this.id = id; }
@@ -91,6 +94,8 @@ public class Request implements Serializable {
     public void setGroupName(String groupName) { this.groupName = groupName; }
 
     public void setNewContact(String username) { this.newContact = username; }
+
+    public void setcontactToRemoveIndex(int i){this.contactToRemoveIndex = i;}
 
     public void login(String username, String password) {
 

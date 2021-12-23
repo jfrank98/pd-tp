@@ -88,9 +88,9 @@ public class ThreadClient extends Thread{
                             req.addContactSuccess(req.getNewContact());
                         }
                     }else if (req.getMessage().equalsIgnoreCase("REMOVE_CONTACT")){
-                        req.setMessage(removeContact(req.getNewContact(), req.getID()));
-                        if(req.getMessage().equalsIgnoreCase("SUCCESS"))
-                            ;//req.removeContactSuccess(req.getContactIdex());
+                        int index = removeContact(req.getNewContact(), req.getID());
+                        if(index != -1)
+                            req.removeContactSuccess(index);
                     }
                     else if (req.getMessage().equalsIgnoreCase("CREATE_GROUP")){
                         req.setMessage(createGroup(req.getGroupName(), req.getID()));
@@ -325,7 +325,7 @@ public class ThreadClient extends Thread{
         return ans;
     }
 
-    public String removeContact(String user, int id){
+    public int removeContact(String user, int id){
         String ans = "FAILURE";
         int contactId=0;
         try{
@@ -342,23 +342,25 @@ public class ThreadClient extends Thread{
             Statement stmt2 = conn.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
             ResultSet contact = stmt2.executeQuery(GET_CONTACTS_QUERY);
 
-            while(contact.next()){
-                if(id != contact.getInt(1) || contactId != contact.getInt(2))
-                {
-                    ans = "FAILURE - Não tem este contacto adicionado.";
-                    return ans;
-                }
-                PreparedStatement ps = conn.prepareStatement("DELETE FROM UserContact WHERE user_id=? AND contact_id=?");
-                ps.setInt(1, id);
-                ps.setInt(2, contactId);
+            while(contact.next()) {
+                if (id == contact.getInt(1) && contactId == contact.getInt(2)) {
+                    PreparedStatement ps = conn.prepareStatement("DELETE FROM UserContact WHERE user_id=? AND contact_id=?");
+                    ps.setInt(1, id);
+                    ps.setInt(2, contactId);
 
-                ps.executeUpdate();
-                ans = "SUCCESS";
+                    ps.executeUpdate();
+                    ans = "SUCCESS";
+                    return contactId;
+                }
             }
+
+            ans = "FAILURE - Não tem este contacto adicionado.";
+            return -1;
+
         } catch (SQLException e) {
             System.out.println("\n" + e);
         }
-        return ans;
+        return -1;
     }
 
     public String createGroup(String n, int id){
