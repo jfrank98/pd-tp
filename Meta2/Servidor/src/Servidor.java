@@ -51,6 +51,7 @@ public class Servidor implements Runnable{
 
         //Tentar connectar-se à base de dados
         try {
+            //NÃO ESTÁ A FUNCIONAR...
             Class.forName(JDBC_DRIVER);
 
             conn = DriverManager.getConnection(DB_URL, USER, PASS);

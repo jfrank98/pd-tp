@@ -142,7 +142,6 @@ public class Cliente {
                                 for (String contacto : request.getListaContactos()) {
                                     System.out.println(contacto);
                                 }
-                                //Ver lista de contactos
                             }
                             else if(option2 == 2){
                                 //Adicionar contacto
@@ -159,8 +158,17 @@ public class Cliente {
                                 }
                             }
                             else if(option2 == 3){
-                                System.out.println("\n(Eliminar contacto).\n");
-                                //FAZER
+                                //System.out.println("\n(Eliminar contacto).\n");
+                                //Remover Contacto
+                                request.setMessage("REMOVE_CONTACT");
+                                request.setNewContact(getRemoveUsername());
+
+                                sendMessage(request, oout);
+                                System.out.println("\n"+request.getMessage());
+
+                                if (request.getMessage().equals("SERVER_OFF")){
+                                    getNewServer();
+                                }
                             }
                             else if(option2 != 0){
                                 //Opção inválida
@@ -176,6 +184,7 @@ public class Cliente {
                             System.out.println("3 - Criar grupo");
                             System.out.println("4 - Editar grupo");
                             System.out.println("5 - Sair de um grupo");
+                            System.out.println("6 - Mostrar todos os grupos");
                             System.out.println("0 - Voltar");
 
                             System.out.print("\nOpção: ");
@@ -185,6 +194,8 @@ public class Cliente {
                             if(option2 == 1){
                                 System.out.println("\n(Meus grupos).\n");
                                 //Listar os meus grupos
+                                for(String group : request.getListaContactos())
+                                    System.out.println(group); //falta mostrar membros existentes
                             }
                             else if(option2 == 2){
                                 //Aderir a um grupo
@@ -221,6 +232,19 @@ public class Cliente {
                             }
                             else if(option2 == 5){
                                 System.out.println("\n(Sair de um grupo).\n");
+                            }
+                            else if(option == 3)
+                            {
+                                System.out.println("(Lista todos os grupos existentes no sistema)");
+                                request.setMessage("LIST_GROUPS");
+                                sendMessage(request, oout);
+
+                                request = (Request) oinS.readObject();
+                                System.out.println("\n" + request.getMessage());
+
+                                if (request.getMessage().equals("SERVER_OFF")){
+                                    getNewServer();
+                                }
                             }
                             else if(option2 != 0){
                                 //Opção inválida
@@ -402,6 +426,17 @@ public class Cliente {
             System.out.print("\nNovo contacto: ");
         else
             System.out.print("\nNovo username: ");
+
+        return sc.nextLine();
+    }
+
+    public static String getRemoveUsername(){
+        Scanner sc = new Scanner(System.in);
+
+        if(request.getMessage().equalsIgnoreCase("REMOVE_CONTACT"))
+            System.out.println("Contacto a remover: ");
+        else
+            System.out.println("Username do contacto a remover");
 
         return sc.nextLine();
     }

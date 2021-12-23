@@ -1,0 +1,13 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="Cliente:jar">
+    <output-path>$PROJECT_DIR$/executables/jars</output-path>
+    <root id="archive" name="Cliente.jar">
+      <element id="directory" name="META-INF">
+        <element id="file-copy" path="$PROJECT_DIR$/Cliente/src/META-INF/MANIFEST.MF" />
+      </element>
+      <element id="module-output" name="Servidor" />
+      <element id="module-output" name="GRDS" />
+      <element id="module-output" name="Cliente" />
+    </root>
+  </artifact>
+</component>

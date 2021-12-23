@@ -19,6 +19,7 @@ public class ThreadClient extends Thread{
     private static final String GET_CONTACTS_QUERY = "SELECT * FROM UserContact;";
     private static final String COUNT_USERS_QUERY = "SELECT COUNT(*) FROM User;";
     private static final String COUNT_GROUPS_QUERY = "SELECT COUNT(*) FROM `Group`;";
+    private static final String GET_USERS_GROUP_QUERY = "SELECT * FROM UserInGroup;";
     private Statement stmt;
     private Connection conn;
 
@@ -98,7 +99,9 @@ public class ThreadClient extends Thread{
                     else if (req.getMessage().equalsIgnoreCase("JOIN_GROUP")){
                         req.setMessage(joinGroup(req.getGroupName(), req.getID()));
                     }
-
+                    else if(req.getMessage().equalsIgnoreCase("LIST_GROUPS")){
+                        req.setMessage(listExistingGroups());
+                    }
 
                     //Envia resposta ao cliente
                     out.writeUnshared(req);
@@ -415,6 +418,36 @@ public class ThreadClient extends Thread{
 
 
 
+
+        return ans;
+    }
+
+    public String listExistingGroups(){ //Retorna String formatada com os grupos e os respetivos users
+        String ans = "FAILURE - Não existem grupos no sistema";
+        try{
+            ResultSet groupList = stmt.executeQuery(GET_GROUPS_QUERY);
+            ResultSet usersInGroupList = stmt.executeQuery(GET_USERS_GROUP_QUERY);
+            ResultSet users = stmt.executeQuery(GET_USERS_QUERY);
+
+            while(groupList.next()){
+                ans = "["+groupList.getInt(1)+":"+groupList.getString(3)+":"+
+                        groupList.getString(4)+"->{";
+
+                while(usersInGroupList.next()){
+                    while(users.next()){
+                        if(usersInGroupList.getInt(3) == users.getInt(1))
+                            ans += users.getString(3)+";";
+                    }
+                    ans += "\n";
+                }
+                ans += "}";
+                ans += "\n";
+            }
+            return ans;
+
+        } catch (SQLException e) {
+            System.out.println("\n" + e);
+        }
         return ans;
     }
 }
