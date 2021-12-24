@@ -9,6 +9,7 @@ public class Request implements Serializable {
     private String oldUsername;
     private String oldPassword;
     private String groupName;
+    private String oldGroupName;
     private String newContact;
     private boolean session = false;
     private String message;
@@ -63,6 +64,8 @@ public class Request implements Serializable {
 
     public String getGroupName() { return groupName; }
 
+    public String getOldGroupName(){return oldGroupName;}
+
     public String getNewContact() { return newContact; }
 
     public ArrayList<String> getListaContactos() { return listaContactos; }
@@ -92,6 +95,8 @@ public class Request implements Serializable {
     public void setOldPassword(String oldPassword) {this.oldPassword = oldPassword; }
 
     public void setGroupName(String groupName) { this.groupName = groupName; }
+
+    public void setOldGroupName(String oldGn){this.oldGroupName = oldGn;}
 
     public void setNewContact(String username) { this.newContact = username; }
 

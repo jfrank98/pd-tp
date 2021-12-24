@@ -130,6 +130,8 @@ public class Cliente {
                             System.out.println("\n1 - Lista de contactos");
                             System.out.println("2 - Adicionar contacto");
                             System.out.println("3 - Eliminar contacto");
+                            System.out.println("4 - Lista utilizadores");
+                            System.out.println("5 - Procura utilizador");
                             System.out.println("0 - Voltar");
 
                             System.out.print("\nOpção: ");
@@ -138,7 +140,6 @@ public class Cliente {
 
                             if(option2 == 1){
                                 System.out.println("\n(Lista de contactos).\n");
-
                                 for (String contacto : request.getListaContactos()) {
                                     System.out.println(contacto);
                                 }
@@ -166,6 +167,28 @@ public class Cliente {
                                 sendMessage(request, oout);
                                 System.out.println("\n"+request.getMessage());
 
+                                if (request.getMessage().equals("SERVER_OFF")){
+                                    getNewServer();
+                                }
+                            }
+                            else if(option2 == 4){
+                                System.out.println("\n(Lista todos os utilizadores registados)");
+                                request.setMessage("LIST_USERS");
+
+                                sendMessage(request,oout);
+                                System.out.println("\n"+request.getMessage());
+
+                                if (request.getMessage().equals("SERVER_OFF")){
+                                    getNewServer();
+                                }
+                            }
+                            else if(option2 == 5){
+                                System.out.println("\n(Lista utilizador procurado)");
+                                request.setMessage("SEARCH_USER");
+                                request.setNewContact(getUserToSearch());
+
+                                sendMessage(request,oout);
+                                System.out.println("\n"+request.getMessage());
                                 if (request.getMessage().equals("SERVER_OFF")){
                                     getNewServer();
                                 }
@@ -229,6 +252,41 @@ public class Cliente {
                             }
                             else if(option2 == 4){
                                 System.out.println("\n(Editar grupo).\n");
+                                System.out.println("\n1 - Alterar nome");
+                                System.out.println("2 - Remover utilizador");
+                                System.out.println("3 - Apagar grupo");
+
+                                Scanner aux = new Scanner(System.in);
+                                int optionAux;
+                                while(aux.hasNextInt()){
+                                    optionAux = aux.nextInt();
+
+                                    if(optionAux == 1){
+                                        request.setMessage("CHANGE_GROUP_NAME");
+                                        //Recebe o grupo que o utilizador tenciona editar
+                                        request.setGroupName(getNewGroupName());
+                                        //Recebe o novo nome, para o grupo escolhido anteriormente
+                                        request.setOldGroupName(getChangedGroupName());
+
+                                        sendMessage(request,oout);
+
+                                        request = (Request) oinS.readObject();
+                                        System.out.println("\n"+request.getMessage());
+
+                                        if (request.getMessage().equals("SERVER_OFF")){
+                                            getNewServer();
+                                        }
+                                    }
+                                    else if(optionAux == 2){
+                                        System.out.println("");
+                                    }
+                                    else if(optionAux == 3){
+                                        System.out.println("");
+                                    }
+                                    else if(optionAux != 0){
+                                        System.out.println("\nOpção inválida");
+                                    }
+                                }
                             }
                             else if(option2 == 5){
                                 System.out.println("\n(Sair de um grupo).\n");
@@ -441,6 +499,16 @@ public class Cliente {
         return sc.nextLine();
     }
 
+    public static String getUserToSearch(){
+        Scanner sc = new Scanner(System.in);
+
+        if(request.getMessage().equalsIgnoreCase("SEARCH_USER"))
+            System.out.println("Username: ");
+        else
+            System.out.println("Name: ");
+        return sc.nextLine();
+    }
+
     public static String getNewPassword(){
         Scanner sc = new Scanner(System.in);
 
@@ -452,6 +520,15 @@ public class Cliente {
         Scanner sc = new Scanner(System.in);
 
         System.out.print("\nNome do grupo: ");
+        return sc.nextLine();
+    }
+
+    //Utiliza-se a função getNewGroupName() para obter o nome do grupo que o user pretende editar
+    //Com esta função, recebe-se o input do user para o novo nome que quer atribuir ao grupo
+    public static String getChangedGroupName(){
+        Scanner sc = new Scanner(System.in);
+
+        System.out.print("\nNovo nome para o grupo: ");
         return sc.nextLine();
     }
 

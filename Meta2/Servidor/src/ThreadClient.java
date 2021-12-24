@@ -93,14 +93,32 @@ public class ThreadClient extends Thread{
                         if(index != -1)
                             req.removeContactSuccess(index);
                     }
+                    else if(req.getMessage().equalsIgnoreCase("LIST_USERS")){
+                        req.setMessage(listUsers());
+                    }
+                    else if(req.getMessage().equalsIgnoreCase("SEARCH_USER")){
+                        req.setMessage(searchUser(req.getNewContact()));
+                    }
                     else if (req.getMessage().equalsIgnoreCase("CREATE_GROUP")){
                         req.setMessage(createGroup(req.getGroupName(), req.getID()));
                     }
                     else if (req.getMessage().equalsIgnoreCase("JOIN_GROUP")){
                         req.setMessage(joinGroup(req.getGroupName(), req.getID()));
                     }
+                    else if(req.getMessage().equalsIgnoreCase("LEAVE_GROUP")){
+                        System.out.println("");
+                    }
                     else if(req.getMessage().equalsIgnoreCase("LIST_GROUPS")){
                         req.setMessage(listExistingGroups());
+                    }
+                    else if(req.getMessage().equalsIgnoreCase("CHANGE_GROUP_NAME")) {
+                        req.setMessage(changeGroupName(req.getGroupName(), req.getID(), req.getOldGroupName()));
+                    }
+                    else if(req.getMessage().equalsIgnoreCase("REMOVE_USER_GROUP")){
+                        System.out.println("");
+                    }
+                    else if(req.getMessage().equalsIgnoreCase("DELETE_GROUP")){
+                        System.out.println("");
                     }
 
                     //Envia resposta ao cliente
@@ -322,9 +340,7 @@ public class ThreadClient extends Thread{
 
         }catch(SQLException e){
             System.out.println("\n" + e);
-
         }
-
         return ans;
     }
 
@@ -364,6 +380,35 @@ public class ThreadClient extends Thread{
             System.out.println("\n" + e);
         }
         return -1;
+    }
+
+    public String listUsers(){
+        String ans = "FAILURE - Não existem utilizadores registados no sistema";
+        try{
+            ans = "";
+            ResultSet users = stmt.executeQuery(GET_USERS_QUERY);
+            while(users.next()){
+                ans  += users.getString(3);
+            }
+        } catch (SQLException e) {
+            System.out.println("\n" + e);
+        }
+        return ans;
+    }
+
+    public String searchUser(String username){
+        String ans = "FAILURE - Não existe nenhum utilizador com o Username fornecido";
+
+        try{
+            ResultSet users = stmt.executeQuery(GET_USERS_QUERY);
+            while(users.next()){
+                if(users.getString(3) == username || users.getString(4) == username)
+                    ans = "Username: "+users.getString(3)+"\nName: "+users.getString(4);
+            }
+        }catch (SQLException e) {
+            System.out.println("\n" + e);
+        }
+        return ans;
     }
 
     public String createGroup(String n, int id){
@@ -418,6 +463,27 @@ public class ThreadClient extends Thread{
 
 
 
+
+        return ans;
+    }
+
+    public String changeGroupName(String groupName, int id, String newGroupName){
+        String ans = "FAILURE - Não tens permissões para editar este grupo";
+        try{
+            ResultSet groups = stmt.executeQuery(GET_GROUPS_QUERY);
+
+            while(groups.next()){
+                if(id == groups.getInt(4) && groupName.equalsIgnoreCase(groups.getString(3))){
+                    PreparedStatement ps = conn.prepareStatement("UPDATE Group SET group_name = ?");
+                    ps.setString(1, newGroupName);
+                    ps.executeUpdate();
+                    ans = "SUCCESS";
+                }
+
+            }
+        } catch (SQLException e) {
+            System.out.println("\n" + e);
+        }
 
         return ans;
     }
