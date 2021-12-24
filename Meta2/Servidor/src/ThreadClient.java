@@ -106,9 +106,9 @@ public class ThreadClient extends Thread{
                     else if (req.getMessage().equalsIgnoreCase("REMOVE_CONTACT")){
                         req.setMessage(removeContact(req.getContact(), req.getID()));
 
-                        if(req.getMessage().equalsIgnoreCase("SUCCESS")){
-                            req.removeContactSuccess(String.valueOf(contactID));
-                        }
+//                        if(req.getMessage().equalsIgnoreCase("SUCCESS")){
+//                            req.removeContactSuccess(String.valueOf(contactID));
+//                        }
                     }
                     else if (req.getMessage().equalsIgnoreCase("LIST_GROUPS")){
                         req.getListaGrupos().clear();
@@ -145,12 +145,14 @@ public class ThreadClient extends Thread{
                     else if (req.getMessage().equalsIgnoreCase("CHANGE_GROUP_NAME")){
                         req.setMessage(changeGroupName(req.getOldGroupName(), req.getGroupName(), req.getID()));
                     }
+                    else if (req.getMessage().equalsIgnoreCase("REMOVE_MEMBER")){
+                        req.setMessage(removeMember(req.getContact(), req.getGroupName(), req.getID()));
+                    }
+                    else if (req.getMessage().equalsIgnoreCase("DELETE_GROUP")){
+                        req.setMessage(deleteGroup(req.getGroupName(), req.getID()));
+                    }
                     else if (req.getMessage().equalsIgnoreCase("LEAVE_GROUP")){
                         req.setMessage(leaveGroup(req.getGroupName(), req.getID()));
-
-                        if(req.getMessage().equalsIgnoreCase("SUCCESS")){
-                            req.leaveGroupSuccess(String.valueOf(groupID));
-                        }
                     }
 
 
@@ -677,6 +679,97 @@ public class ThreadClient extends Thread{
                 }
             }
         }catch (SQLException e) {
+            System.out.println("\n" + e);
+        }
+
+        return ans;
+    }
+
+    public String removeMember(String u, String n, int id){
+        String ans = "FAILURE";
+        boolean encontrouID = false;
+        boolean encontrouNoGrupo = false;
+        contactID = 0;
+        groupID = 0;
+
+        try {
+            ResultSet rs = stmt.executeQuery(GET_USERS_QUERY);
+
+            while (rs.next()) {
+                if (u.equalsIgnoreCase(rs.getString(3))) {
+                    contactID = rs.getInt(1);
+                    encontrouID = true;
+                    break;
+                }
+            }
+
+            if(contactID == id){
+                ans = "FAILURE - Não se pode remover a si próprio deste gupo.";
+                return ans;
+            }
+
+            ResultSet rs2 = stmt.executeQuery(GET_GROUPS_QUERY);
+
+            while (rs2.next()) {
+                if (n.equalsIgnoreCase(rs2.getString(3)) && id == rs2.getInt(4)) {
+                    groupID = rs2.getInt(1);
+                    break;
+                }
+            }
+
+            ResultSet rs3 = stmt.executeQuery(GET_USERINGROUP_QUERY);
+
+            while (rs3.next()) {
+                if (groupID == rs3.getInt(1) && contactID == rs3.getInt(3)) {
+                    encontrouNoGrupo = true;
+                    break;
+                }
+            }
+
+            if(!encontrouNoGrupo){
+                ans = "FAILURE - Não existe nenhum membro com este nome neste grupo.";
+                return ans;
+            }
+
+            PreparedStatement ps = conn.prepareStatement("DELETE FROM useringroup WHERE group_group_id = ? AND group_user_id = ?");
+            ps.setInt(1, groupID);
+            ps.setInt(2, contactID);
+
+            ps.executeUpdate();
+            ans = "SUCCESS";
+
+        }catch(SQLException e){
+            System.out.println("\n" + e);
+        }
+
+        return ans;
+    }
+
+    public String deleteGroup(String n, int id){
+        String ans = "FAILURE";
+        groupID = 0;
+
+        try {
+            ResultSet rs = stmt.executeQuery(GET_GROUPS_QUERY);
+
+            while (rs.next()){
+                if(n.equalsIgnoreCase(rs.getString(3))){
+                    groupID = rs.getInt(1);
+                }
+            }
+
+            PreparedStatement ps = conn.prepareStatement("DELETE FROM useringroup WHERE group_group_id = ?");
+            ps.setInt(1, groupID);
+
+            ps.executeUpdate();
+
+            PreparedStatement ps2 = conn.prepareStatement("DELETE FROM `Group` WHERE group_id = ?");
+            ps2.setInt(1, groupID);
+
+            ps2.executeUpdate();
+            ans = "SUCCESS";
+
+        }catch(SQLException e){
             System.out.println("\n" + e);
         }
 

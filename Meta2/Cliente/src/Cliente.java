@@ -113,7 +113,7 @@ public class Cliente {
                     System.out.println("\n1 - Iniciar sessão");
                     System.out.println("2 - Criar conta");
                 } else{
-                    System.out.println("\n1 - Contactos");
+                    System.out.println("\n\n1 - Contactos");
                     System.out.println("2 - Grupos");
                     System.out.println("3 - Definições");
                 }
@@ -128,7 +128,7 @@ public class Cliente {
                     if(option == 1){
                         //Contactos
                         do{
-                            System.out.println("\n1 - Lista de contactos");
+                            System.out.println("\n\n1 - Lista de contactos");
                             System.out.println("2 - Adicionar contacto");
                             System.out.println("3 - Eliminar contacto");
                             System.out.println("0 - Voltar");
@@ -147,13 +147,14 @@ public class Cliente {
                                 request = (Request) oinS.readObject();
 
                                 if(request.getListaContactos().size() == 0){
-                                    System.out.println("\nNão tem contactos na sua lista.");
+                                    System.out.println("\n\nNão tem contactos na sua lista.\n");
                                 }
                                 else {
-                                    System.out.println("\nLista de contactos:");
+                                    System.out.println("\n\nLista de contactos:");
                                     for (String contacto : request.getListaContactos()) {
-                                        System.out.println("- " + contacto);
+                                        System.out.println("-" + contacto);
                                     }
+                                    System.out.println();
                                 }
 
                                 if (request.getMessage().equals("SERVER_OFF")){
@@ -199,7 +200,7 @@ public class Cliente {
                     else if(option == 2){
                         //Grupos
                         do{
-                            System.out.println("\n1 - Meus grupos");
+                            System.out.println("\n\n1 - Meus grupos");
                             System.out.println("2 - Aderir a grupo");
                             System.out.println("3 - Criar grupo");
                             System.out.println("4 - Editar grupo");
@@ -220,13 +221,14 @@ public class Cliente {
                                 request = (Request) oinS.readObject();
 
                                 if(request.getListaGrupos().size() == 0){
-                                    System.out.println("\nNão pertence a nenhum grupo.");
+                                    System.out.println("\n\nNão pertence a nenhum grupo.\n");
                                 }
                                 else {
-                                    System.out.println("\nOs meus grupos:");
+                                    System.out.println("\n\nOs meus grupos:");
                                     for (String grupo : request.getListaGrupos()) {
-                                        System.out.println("- " + grupo);
+                                        System.out.println("-" + grupo);
                                     }
+                                    System.out.println();
                                 }
 
                                 if (request.getMessage().equals("SERVER_OFF")){
@@ -278,13 +280,13 @@ public class Cliente {
                                 request = (Request) oinS.readObject();
 
                                 if(request.getListaGruposAdmin().size() == 0){
-                                    System.out.println("\nNão é administrador de nenhum grupo.");
+                                    System.out.println("\n\nNão é administrador de nenhum grupo.\n");
                                     continue;
                                 }
                                 else {
-                                    System.out.println("\nAdministrador dos grupos:");
+                                    System.out.println("\n\nAdministrador dos grupos:");
                                     for (String grupo : request.getListaGruposAdmin()) {
-                                        System.out.println("- " + grupo);
+                                        System.out.println("-" + grupo);
                                     }
                                 }
 
@@ -306,11 +308,12 @@ public class Cliente {
                                     continue;
                                 }
                                 else {
-                                    System.out.println("\nMembros do grupo '" + request.getGroupName() + "':");
+                                    System.out.println("\n\nMembros do grupo '" + request.getGroupName() + "':");
 
                                     for (String membro : request.getListaMembros()) {
-                                        System.out.println("- " + membro);
+                                        System.out.println("-" + membro);
                                     }
+                                    System.out.println();
                                 }
 
                                 if (request.getMessage().equals("SERVER_OFF")){
@@ -318,7 +321,7 @@ public class Cliente {
                                 }
 
                                 do{
-                                    System.out.println("\n1 - Alterar nome do grupo");
+                                    System.out.println("\n\n1 - Alterar nome do grupo");
                                     System.out.println("2 - Remover membro");
                                     System.out.println("3 - Eliminar grupo");
                                     System.out.println("0 - Voltar");
@@ -350,10 +353,44 @@ public class Cliente {
                                     else if(option3 == 2){
                                         //Remover membro
                                         request.setMessage("REMOVE_MEMBER");
+                                        request.setContact(getNewUsername());
+
+                                        //Tentar enviar pedido de REMOVE_MEMBER ao servidor
+                                        sendMessage(request, oout);
+
+                                        request = (Request) oinS.readObject();
+                                        System.out.println("\n" + request.getMessage());
+
+                                        if (request.getMessage().equals("SERVER_OFF")){
+                                            getNewServer();
+                                        }
+                                        break;
                                     }
                                     else if(option3 == 3){
                                         //Eliminar grupo
-                                        request.setMessage("DELETE_GROUP");
+                                        ans = getConfirmation();
+
+                                        if(ans.equalsIgnoreCase("N")){
+                                            continue;
+                                        }
+                                        else if(ans.equalsIgnoreCase("S")){
+                                            request.setMessage("DELETE_GROUP");
+
+                                            //Tentar enviar pedido de DELETE_GROUP ao servidor
+                                            sendMessage(request, oout);
+
+                                            request = (Request) oinS.readObject();
+                                            System.out.println("\n" + request.getMessage());
+
+                                            if (request.getMessage().equals("SERVER_OFF")){
+                                                getNewServer();
+                                            }
+                                        }
+                                        else {
+                                            System.out.println("\nResposta inválida.");
+                                            continue;
+                                        }
+                                        break;
                                     }
                                     else if(option3 != 0){
                                         //Opção inválida
@@ -385,7 +422,7 @@ public class Cliente {
                     else if(option == 3){
                         //Definições
                         do{
-                            System.out.println("\n1 - Alterar username");
+                            System.out.println("\n\n1 - Alterar username");
                             System.out.println("2 - Alterar password");
                             System.out.println("0 - Voltar");
 
@@ -550,7 +587,7 @@ public class Cliente {
     public static String getNewUsername(){
         Scanner sc = new Scanner(System.in);
 
-        if(request.getMessage().equalsIgnoreCase("ADD_CONTACT") || request.getMessage().equalsIgnoreCase("REMOVE_CONTACT"))
+        if(request.getMessage().equalsIgnoreCase("ADD_CONTACT") || request.getMessage().equalsIgnoreCase("REMOVE_CONTACT") || request.getMessage().equalsIgnoreCase("REMOVE_MEMBER"))
             System.out.print("\nNome contacto: ");
         else
             System.out.print("\nNovo username: ");
@@ -575,6 +612,13 @@ public class Cliente {
         else
             System.out.print("\nNome do grupo: ");
 
+        return sc.nextLine();
+    }
+
+    public static String getConfirmation(){
+        Scanner sc = new Scanner(System.in);
+
+        System.out.println("\nTem a certeza que pretende eliminar este grupo? (S/N)");
         return sc.nextLine();
     }
 
