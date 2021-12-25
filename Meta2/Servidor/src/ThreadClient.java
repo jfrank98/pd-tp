@@ -105,10 +105,6 @@ public class ThreadClient extends Thread{
                     }
                     else if (req.getMessage().equalsIgnoreCase("REMOVE_CONTACT")){
                         req.setMessage(removeContact(req.getContact(), req.getID()));
-
-//                        if(req.getMessage().equalsIgnoreCase("SUCCESS")){
-//                            req.removeContactSuccess(String.valueOf(contactID));
-//                        }
                     }
                     else if (req.getMessage().equalsIgnoreCase("LIST_GROUPS")){
                         req.getListaGrupos().clear();
@@ -430,16 +426,30 @@ public class ThreadClient extends Thread{
                 return ans;
             }
 
-            PreparedStatement ps = conn.prepareStatement("DELETE FROM UserContact WHERE user_id = ? AND contact_id = ?");
-            ps.setInt(1, id);
-            ps.setInt(2, contactID);
+            //Não testado - apagar da tabela 'message' primeiro ?
+//            PreparedStatement ps = conn.prepareStatement("DELETE FROM Messagerecipient WHERE sender_id = ? AND recipient_id = ?");
+//            ps.setInt(1, id);
+//            ps.setInt(2, contactID);
+//
+//            ps.executeUpdate();
+//
+//            PreparedStatement ps1 = conn.prepareStatement("DELETE FROM Messagerecipient WHERE sender_id = ? AND recipient_id = ?");
+//            ps1.setInt(1, contactID);
+//            ps1.setInt(2, id);
+//
+//            ps1.executeUpdate();
 
             PreparedStatement ps2 = conn.prepareStatement("DELETE FROM UserContact WHERE user_id = ? AND contact_id = ?");
-            ps2.setInt(1, contactID);
-            ps2.setInt(2, id);
+            ps2.setInt(1, id);
+            ps2.setInt(2, contactID);
 
-            ps.executeUpdate();
             ps2.executeUpdate();
+
+            PreparedStatement ps3 = conn.prepareStatement("DELETE FROM UserContact WHERE user_id = ? AND contact_id = ?");
+            ps3.setInt(1, contactID);
+            ps3.setInt(2, id);
+
+            ps3.executeUpdate();
             ans = "SUCCESS";
 
         }catch(SQLException e){
@@ -758,15 +768,21 @@ public class ThreadClient extends Thread{
                 }
             }
 
-            PreparedStatement ps = conn.prepareStatement("DELETE FROM useringroup WHERE group_group_id = ?");
+            PreparedStatement ps = conn.prepareStatement("DELETE FROM Message WHERE group_id = ?");
             ps.setInt(1, groupID);
 
-            ps.executeUpdate();
+            ps.execute();
+
+            PreparedStatement ps1 = conn.prepareStatement("DELETE FROM useringroup WHERE group_group_id = ?");
+            ps1.setInt(1, groupID);
+
+            ps1.executeUpdate();
 
             PreparedStatement ps2 = conn.prepareStatement("DELETE FROM `Group` WHERE group_id = ?");
             ps2.setInt(1, groupID);
 
             ps2.executeUpdate();
+
             ans = "SUCCESS";
 
         }catch(SQLException e){
@@ -803,11 +819,16 @@ public class ThreadClient extends Thread{
                 return ans;
             }
 
-            PreparedStatement ps = conn.prepareStatement("DELETE FROM useringroup WHERE group_user_id = ? AND group_group_id = ?");
+            PreparedStatement ps = conn.prepareStatement("DELETE FROM Message WHERE User_user_id = ?");
             ps.setInt(1, id);
-            ps.setInt(2, groupID);
 
             ps.executeUpdate();
+
+            PreparedStatement ps1 = conn.prepareStatement("DELETE FROM useringroup WHERE group_user_id = ? AND group_group_id = ?");
+            ps1.setInt(1, id);
+            ps1.setInt(2, groupID);
+
+            ps1.executeUpdate();
             ans = "SUCCESS";
 
         }catch(SQLException e){
