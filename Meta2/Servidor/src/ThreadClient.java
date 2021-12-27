@@ -7,10 +7,15 @@ import java.net.Socket;
 import java.net.SocketException;
 import java.rmi.RemoteException;
 import java.sql.*;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Calendar;
+import java.util.Iterator;
 
 public class ThreadClient extends Thread{
 
@@ -34,6 +39,7 @@ public class ThreadClient extends Thread{
     private ArrayList<String> pendingJoinRequests = new ArrayList<>();
     private ArrayList<String> pendingContactRequests = new ArrayList<>();
     private ArrayList<Integer> pendingJoinRequestsGroupId = new ArrayList<>();
+    private ArrayList<String> messageHistory = new ArrayList<>();
     private int contactID;
     private int groupID;
     private int adminID;
@@ -213,6 +219,12 @@ public class ThreadClient extends Thread{
                     else if (req.getMessage().equalsIgnoreCase("IGNORE_ALL_GROUP_REQUESTS")) {
                         req.setMessage("SUCCESS");
                     }
+                    else if (req.getMessage().equalsIgnoreCase("JOIN_CHAT")){
+
+                    }
+                    else if (req.getMessage().equalsIgnoreCase("SEND_MESSAGE")) {
+                        req.setMessage(createMessage(req.getID(), req.getMessageContent(), getIDFromDB(req.getContact()), req.isFile()));
+                    }
                     //Envia resposta ao cliente
                     out.writeUnshared(req);
                 }
@@ -223,7 +235,67 @@ public class ThreadClient extends Thread{
         }
     }
 
-    public String createAccount(String u, String p, String n) throws RemoteException {
+    public String createMessage(int id, String message, int cid, boolean isFile) {
+        String ans = "FAILURE";
+
+        try {
+            PreparedStatement ps = conn.prepareStatement("INSERT INTO Message (content, timestamp, file, group_id, group_admin, User_user_id) VALUES (?, ?, ?, ?, ?, ?);");
+            ps.setString(1, message);
+
+            SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
+
+            Date date = (Date) formatter.parse(Calendar.getInstance().getTime().toString());
+            ps.setDate(2, date);
+            ps.setBoolean(3, isFile);
+            ps.setInt(4, -1);
+            ps.setInt(5, -1);
+            ps.setInt(6, id);
+
+            ps.executeUpdate();
+
+            ResultSet rs = ps.getGeneratedKeys();
+            int mid = 0;
+            if (rs.next())
+                mid = rs.getInt(1);
+
+            PreparedStatement ps2 = conn.prepareStatement("INSERT INTO MessageRecipient (recipient_id, message_id, sender_id) VALUES (?, ?, ?);");
+            ps2.setInt(1, cid);
+            ps2.setInt(2, mid);
+            ps2.setInt(3, id);
+
+            ps2.executeUpdate();
+
+            ans = "SUCCESS";
+        } catch (SQLException | ParseException throwables) {
+            throwables.printStackTrace();
+        }
+
+        return ans;
+    }
+
+    private String getMessagesFrom(int id, int cid) {
+        String ans = "FAILURE";
+        try {
+            PreparedStatement ps = conn.prepareStatement("SELECT * FROM MessageRecipient WHERE recipient_id = ? AND sender_id = ?;");
+            ps.setInt(1, id);
+            ps.setInt(2, cid);
+            ResultSet rs = ps.executeQuery();
+
+            PreparedStatement ps2 = conn.prepareStatement("SELECT * FROM Message WHERE message_id = ?");
+            ResultSet rs2;
+            while(rs.next()) {
+                ps2.setInt(1, rs.getInt(2));
+                rs2 = ps2.executeQuery();
+                messageHistory.add(rs2.getString(2));
+            }
+            ans = "SUCCESS";
+        } catch (SQLException throwables) {
+            throwables.printStackTrace();
+        }
+        return ans;
+    }
+
+    public String createAccount(String u, String p, String n) {
         String ans = null;
 
         try {
@@ -267,7 +339,7 @@ public class ThreadClient extends Thread{
         return ans;
     }
 
-    public String loginUser(String u, String p) throws RemoteException {
+    public String loginUser(String u, String p) {
         String ans = "FAILURE";
 
         try {
@@ -608,8 +680,7 @@ public class ThreadClient extends Thread{
             ps.setInt(1, groupID);
             ps.setInt(2, adminID);
             ps.setInt(3, id);
-            if (adminID == id) ps.setBoolean(4, true);
-            else ps.setBoolean(4, false);
+            ps.setBoolean(4, adminID == id);
 
             ps.executeUpdate();
             ans = "SUCCESS";
@@ -634,7 +705,7 @@ public class ThreadClient extends Thread{
             if (sizeUC > 0) {
                 while (rs2.next()) {
                     if (rs2.getInt(1) == id) {
-                        if (rs2.getBoolean(3) == false) {
+                        if (!rs2.getBoolean(3)) {
                             System.out.println(getUsernameByID(rs2.getInt(2)));
                             pendingContactRequests.add(getUsernameByID(rs2.getInt(2)));
                             ans = "SUCCESS";
@@ -662,7 +733,7 @@ public class ThreadClient extends Thread{
             if (size > 0){
                 while (rs2.next()) {
                     if (id == rs2.getInt(2)) {
-                        if (rs2.getBoolean(4) == false){
+                        if (!rs2.getBoolean(4)){
                             pendingJoinRequests.add(getUsernameByID(rs2.getInt(3)));
                             pendingJoinRequestsGroupId.add(rs2.getInt(1));
                             ans = "SUCCESS";

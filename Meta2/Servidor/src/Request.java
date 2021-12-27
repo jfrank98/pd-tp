@@ -23,6 +23,8 @@ public class Request implements Serializable {
     private ArrayList<Integer> pendingJoinRequestsGroupId = new ArrayList<>();
     private ArrayList<String> pendingContactRequests = new ArrayList<>();
     private ArrayList<Integer> acceptRejectIgnoreRequests = new ArrayList<>();
+    private String messageContent;
+    private boolean file;
 
     public static final long serialVersionUID = 1L;
 
@@ -66,6 +68,14 @@ public class Request implements Serializable {
 
     public String getUsername() {
         return username;
+    }
+
+    public String getMessageContent() {
+        return messageContent;
+    }
+
+    public void setMessageContent(String messageContent) {
+        this.messageContent = messageContent;
     }
 
     public String getName() {
@@ -170,5 +180,13 @@ public class Request implements Serializable {
 
     public void setPendingJoinRequestsGroupId(int a) {
         pendingJoinRequestsGroupId.add(a);
+    }
+
+    public boolean isFile() {
+        return file;
+    }
+
+    public void setFile(boolean file) {
+        this.file = file;
     }
 }
