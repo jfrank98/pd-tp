@@ -437,13 +437,13 @@ public class ThreadClient extends Thread{
             ps.setInt(1, id);
             ps.setBoolean(2, true);
 
-            ResultSet rs = ps.executeQuery("SELECT * FROM UserContact WHERE user_id = " + id);
+            ResultSet rs = ps.executeQuery();
             ResultSet rs2;
             PreparedStatement ps2 = conn.prepareStatement("SELECT * FROM User WHERE user_id = ?");
 
 
             while (rs.next()) {
-                ps.setInt(1, rs.getInt(2));
+                ps2.setInt(1, rs.getInt(2));
                 rs2 = ps2.executeQuery();
                 rs2.next();
                 contacto = rs2.getString(3);
@@ -571,7 +571,10 @@ public class ThreadClient extends Thread{
         listaG.clear();
 
         try {
-            ResultSet rs = stmt.executeQuery("SELECT * FROM UserInGroup WHERE group_user_id = " + id);
+            PreparedStatement ps = conn.prepareStatement("SELECT * FROM UserInGroup WHERE group_user_id = ? AND accepted = true");
+            ps.setInt(1, id);
+            ResultSet rs = ps.executeQuery();
+
             ResultSet rs2;
             Statement stmt2 = conn.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
 
@@ -651,10 +654,10 @@ public class ThreadClient extends Thread{
 
             if (sizeUC > 0) {
                 while (rs2.next()) {
-                    if (rs2.getInt(1) == id) {
+                    if (rs2.getInt(2) == id) {
                         if (rs2.getBoolean(3) == false) {
-                            System.out.println(getUsernameByID(rs2.getInt(2)));
-                            pendingContactRequests.add(getUsernameByID(rs2.getInt(2)));
+                            System.out.println(getUsernameByID(rs2.getInt(1)));
+                            pendingContactRequests.add(getUsernameByID(rs2.getInt(1)));
                             ans = "SUCCESS";
                         }
                     }
@@ -698,12 +701,21 @@ public class ThreadClient extends Thread{
         String ans = "FAILURE";
 
         try {
-            PreparedStatement ps = conn.prepareStatement("UPDATE UserContact SET accepted = ? WHERE user_id = ?");
+            PreparedStatement ps = conn.prepareStatement("UPDATE UserContact SET accepted = ? WHERE contact_id = ?");
             ps.setBoolean(1, true);
             ps.setInt(2, id);
 
             ps.executeUpdate();
             ans = "SUCCESS";
+
+            PreparedStatement ps2 = conn.prepareStatement("INSERT INTO Usercontact (user_id, contact_id, accepted) values(?, ? , true)");
+            ps2.setInt(1, id);
+
+            for(String s: pendingContactRequests){
+                ps2.setInt(2, getIDFromDB(s));
+                ps2.executeUpdate();
+            }
+
         } catch (SQLException throwables) {
             throwables.printStackTrace();
         }
