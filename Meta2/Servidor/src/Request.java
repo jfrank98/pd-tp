@@ -2,7 +2,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 
 public class Request implements Serializable {
-    private int id;
+    private int id = -1;
     private String username;
     private String password;
     private String name;

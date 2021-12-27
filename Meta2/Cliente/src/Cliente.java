@@ -3,7 +3,7 @@ import java.net.*;
 import java.util.ArrayList;
 import java.util.Scanner;
 
-public class Cliente implements Runnable{
+public class Cliente implements Runnable {
     public static final int MAX_SIZE = 1024;
     public static final String ADDR_PORT_REQUEST = "GET_ADDR_PORT_TCP";
     public static final String SERVER_REQUEST = "SERVER_REQUEST";
@@ -74,7 +74,7 @@ public class Cliente implements Runnable{
         } catch (IOException e) {
             System.out.println("\nOcorreu um erro no acesso ao socket:\n\t" + e);
             return;
-        } catch(NullPointerException e) {
+        } catch (NullPointerException e) {
             System.out.println("\nNão foi encontrado um servidor ativo:\n\t" + e);
             return;
         } catch (ClassNotFoundException e) {
@@ -117,7 +117,7 @@ public class Cliente implements Runnable{
                 if (!request.isSession()) {
                     System.out.println("\n1 - Iniciar sessão");
                     System.out.println("2 - Criar conta");
-                } else{
+                } else {
                     System.out.println("\n\n1 - Contactos");
                     System.out.println("2 - Grupos");
                     System.out.println("3 - Definições");
@@ -127,15 +127,17 @@ public class Cliente implements Runnable{
                 System.out.print("\nOpção: ");
 
 
-
-                while (!sc.hasNextInt());
+                while (!sc.hasNextInt()) {
+                    System.out.println("\nOpcao invalida");
+                    sc.nextLine();
+                }
                 option = sc.nextInt();
 
-                if(request.isSession()){
+                if (request.isSession()) {
 
-                    if(option == 1){
+                    if (option == 1) {
                         //Contactos
-                        do{
+                        do {
                             System.out.println("\n\n1 - Lista de contactos");
                             System.out.println("2 - Adicionar contacto");
                             System.out.println("3 - Eliminar contacto");
@@ -143,10 +145,13 @@ public class Cliente implements Runnable{
                             System.out.println("0 - Voltar");
 
                             System.out.print("\nOpção: ");
-                            while (!sc.hasNextInt());
+                            while (!sc.hasNextInt()) {
+                                System.out.println("\nOpcao invalida");
+                                sc.nextLine();
+                            }
                             option2 = sc.nextInt();
 
-                            if(option2 == 1){
+                            if (option2 == 1) {
                                 //Ver lista de contactos
                                 request.setMessage("LIST_CONTACTS");
 
@@ -156,10 +161,9 @@ public class Cliente implements Runnable{
 
                                 request = (Request) oinS.readObject();
 
-                                if(request.getListaContactos().size() == 0){
+                                if (request.getListaContactos().size() == 0) {
                                     System.out.println("\n\nNão tem contactos na sua lista.\n");
-                                }
-                                else {
+                                } else {
                                     System.out.println("\n\nLista de contactos:");
                                     for (String contacto : request.getListaContactos()) {
                                         System.out.println("-" + contacto);
@@ -167,11 +171,10 @@ public class Cliente implements Runnable{
                                     System.out.println();
                                 }
 
-                                if (request.getMessage().equals("SERVER_OFF")){
+                                if (request.getMessage().equals("SERVER_OFF")) {
                                     getNewServer();
                                 }
-                            }
-                            else if(option2 == 2){
+                            } else if (option2 == 2) {
                                 //Adicionar contacto
                                 request.setMessage("ADD_CONTACT");
                                 request.setContact(getNewUsername());
@@ -182,11 +185,10 @@ public class Cliente implements Runnable{
                                 request = (Request) oinS.readObject();
                                 System.out.println("\n" + request.getMessage());
 
-                                if (request.getMessage().equals("SERVER_OFF")){
+                                if (request.getMessage().equals("SERVER_OFF")) {
                                     getNewServer();
                                 }
-                            }
-                            else if(option2 == 3){
+                            } else if (option2 == 3) {
                                 //Eliminar contacto
                                 request.setMessage("REMOVE_CONTACT");
                                 request.setContact(getNewUsername());
@@ -197,19 +199,18 @@ public class Cliente implements Runnable{
                                 request = (Request) oinS.readObject();
                                 System.out.println("\n" + request.getMessage());
 
-                                if (request.getMessage().equals("SERVER_OFF")){
+                                if (request.getMessage().equals("SERVER_OFF")) {
                                     getNewServer();
                                 }
-                            }
-                            else if (option2 == 4) {
+                            } else if (option2 == 4) {
                                 request.setMessage("GET_PENDING_CONTACT_REQUESTS");
                                 request.getPendingContactRequests().clear();
                                 if (sendMessage(request, oout) == 0) continue;
                                 request = (Request) oinS.readObject();
 
-                                if (!request.getPendingContactRequests().isEmpty()){
+                                if (!request.getPendingContactRequests().isEmpty()) {
                                     System.out.println("Pedidos de contacto pendentes:");
-                                    for (String s : request.getPendingContactRequests()){
+                                    for (String s : request.getPendingContactRequests()) {
                                         System.out.println(s);
                                     }
                                     request.getAcceptRejectIgnoreRequests().clear();
@@ -219,42 +220,39 @@ public class Cliente implements Runnable{
                                     System.out.println("3 - Ignorar todos");
                                     System.out.println("4 - Aceitar, rejeitar e ignorar");
 
-                                    while(!sc.hasNextInt());
+                                    while (!sc.hasNextInt()) ;
 
                                     option = sc.nextInt();
 
                                     if (option == 1) {
                                         request.setMessage("ACCEPT_ALL_CONTACT_REQUESTS");
-                                    }
-                                    else if (option == 2) {
+                                    } else if (option == 2) {
                                         request.setMessage("REJECT_ALL_CONTACT_REQUESTS");
-                                    }
-                                    else if (option == 3) {
+                                    } else if (option == 3) {
                                         request.setMessage("IGNORE_ALL_CONTACT_REQUESTS");
-                                    }
-                                    else if (option == 4){
+                                    } else if (option == 4) {
                                         request.setMessage("ACCEPT_CONTACT_REQUESTS");
                                         System.out.println("1, 2, 3 e 4 para Aceitar, Rejeitar, Ignorar e Ignorar resto, respetivamente:");
-                                        for (String s : request.getPendingContactRequests()){
+                                        for (String s : request.getPendingContactRequests()) {
                                             System.out.println(s);
                                             option2 = 0;
-                                            while(option2 < 1 || option2 > 3) {
+                                            while (option2 < 1 || option2 > 3) {
                                                 System.out.print("Opcao: ");
 
-                                                while(!sc.hasNextInt());
+                                                while (!sc.hasNextInt()) ;
                                                 option2 = sc.nextInt();
 
-                                                if (option2 < 1 || option2 > 4) System.out.println("Essa opcao nao existe.");
+                                                if (option2 < 1 || option2 > 4)
+                                                    System.out.println("Essa opcao nao existe.");
                                             }
 
                                             if (option2 == 4) {
                                                 int index = request.getPendingContactRequests().indexOf(s);
-                                                for (int i = index; i < request.getPendingContactRequests().size(); i++){
+                                                for (int i = index; i < request.getPendingContactRequests().size(); i++) {
                                                     request.setAcceptRejectIgnoreRequests(3);
                                                 }
                                                 break;
-                                            }
-                                            else request.setAcceptRejectIgnoreRequests(option2);
+                                            } else request.setAcceptRejectIgnoreRequests(option2);
                                         }
                                     }
                                     if (sendMessage(request, oout) == 0) continue;
@@ -262,16 +260,14 @@ public class Cliente implements Runnable{
                                     request = (Request) oinS.readObject();
                                     System.out.println("\n" + request.getMessage());
                                 }
-                            }
-                            else if(option2 != 0){
+                            } else if (option2 != 0) {
                                 //Opção inválida
                                 System.out.println("\nOpção inválida.");
                             }
-                        } while(option2 != 0);
-                    }
-                    else if(option == 2){
+                        } while (option2 != 0);
+                    } else if (option == 2) {
                         //Grupos
-                        do{
+                        do {
                             System.out.println("\n\n1 - Meus grupos");
                             System.out.println("2 - Aderir a grupo");
                             System.out.println("3 - Criar grupo");
@@ -281,10 +277,13 @@ public class Cliente implements Runnable{
                             System.out.println("0 - Voltar");
 
                             System.out.print("\nOpção: ");
-                            while (!sc.hasNextInt());
+                            while (!sc.hasNextInt()) {
+                                System.out.println("\nOpcao invalida");
+                                sc.nextLine();
+                            }
                             option2 = sc.nextInt();
 
-                            if(option2 == 1){
+                            if (option2 == 1) {
                                 //Listar os meus grupos
                                 request.setMessage("LIST_GROUPS");
 
@@ -293,10 +292,9 @@ public class Cliente implements Runnable{
 
                                 request = (Request) oinS.readObject();
 
-                                if(request.getListaGrupos().size() == 0){
+                                if (request.getListaGrupos().size() == 0) {
                                     System.out.println("\n\nNão pertence a nenhum grupo.\n");
-                                }
-                                else {
+                                } else {
                                     System.out.println("\n\nOs meus grupos:");
                                     for (String grupo : request.getListaGrupos()) {
                                         System.out.println("-" + grupo);
@@ -304,11 +302,10 @@ public class Cliente implements Runnable{
                                     System.out.println();
                                 }
 
-                                if (request.getMessage().equals("SERVER_OFF")){
+                                if (request.getMessage().equals("SERVER_OFF")) {
                                     getNewServer();
                                 }
-                            }
-                            else if(option2 == 2){
+                            } else if (option2 == 2) {
                                 //Aderir a um grupo
                                 request.setMessage("JOIN_GROUP");
                                 request.setGroupName(getNewGroupName());
@@ -319,11 +316,10 @@ public class Cliente implements Runnable{
                                 request = (Request) oinS.readObject();
                                 System.out.println("\n" + request.getMessage());
 
-                                if (request.getMessage().equals("SERVER_OFF")){
+                                if (request.getMessage().equals("SERVER_OFF")) {
                                     getNewServer();
                                 }
-                            }
-                            else if(option2 == 3){
+                            } else if (option2 == 3) {
                                 //Criar grupo
                                 request.setMessage("CREATE_GROUP");
                                 request.setGroupName(getNewGroupName());
@@ -334,11 +330,10 @@ public class Cliente implements Runnable{
                                 request = (Request) oinS.readObject();
                                 System.out.println("\n" + request.getMessage());
 
-                                if (request.getMessage().equals("SERVER_OFF")){
+                                if (request.getMessage().equals("SERVER_OFF")) {
                                     getNewServer();
                                 }
-                            }
-                            else if(option2 == 4){
+                            } else if (option2 == 4) {
                                 //Editar grupo
                                 //limpar listas
                                 request.getListaGruposAdmin().clear();
@@ -352,18 +347,17 @@ public class Cliente implements Runnable{
 
                                 request = (Request) oinS.readObject();
 
-                                if(request.getListaGruposAdmin().size() == 0){
+                                if (request.getListaGruposAdmin().size() == 0) {
                                     System.out.println("\n\nNão é administrador de nenhum grupo.\n");
                                     continue;
-                                }
-                                else {
+                                } else {
                                     System.out.println("\n\nAdministrador dos grupos:");
                                     for (String grupo : request.getListaGruposAdmin()) {
                                         System.out.println("-" + grupo);
                                     }
                                 }
 
-                                if (request.getMessage().equals("SERVER_OFF")){
+                                if (request.getMessage().equals("SERVER_OFF")) {
                                     getNewServer();
                                 }
 
@@ -376,11 +370,10 @@ public class Cliente implements Runnable{
 
                                 request = (Request) oinS.readObject();
 
-                                if(request.getMessage().equals("FAILURE - Não é administrador de nenhum grupo com esse nome.")){
+                                if (request.getMessage().equals("FAILURE - Não é administrador de nenhum grupo com esse nome.")) {
                                     System.out.println("\n" + request.getMessage());
                                     continue;
-                                }
-                                else {
+                                } else {
                                     System.out.println("\n\nMembros do grupo '" + request.getGroupName() + "':");
 
                                     for (String membro : request.getListaMembros()) {
@@ -389,21 +382,24 @@ public class Cliente implements Runnable{
                                     System.out.println();
                                 }
 
-                                if (request.getMessage().equals("SERVER_OFF")){
+                                if (request.getMessage().equals("SERVER_OFF")) {
                                     getNewServer();
                                 }
 
-                                do{
+                                do {
                                     System.out.println("\n\n1 - Alterar nome do grupo");
                                     System.out.println("2 - Remover membro");
                                     System.out.println("3 - Eliminar grupo");
                                     System.out.println("0 - Voltar");
 
                                     System.out.print("\nOpção: ");
-                                    while (!sc.hasNextInt());
+                                    while (!sc.hasNextInt()) {
+                                        System.out.println("\nOpcao invalida");
+                                        sc.nextLine();
+                                    }
                                     option3 = sc.nextInt();
 
-                                    if(option3 == 1){
+                                    if (option3 == 1) {
                                         //Alterar nome do grupo
                                         request.setMessage("CHANGE_GROUP_NAME");
                                         request.setOldGroupName(request.getGroupName());
@@ -415,15 +411,13 @@ public class Cliente implements Runnable{
                                         request = (Request) oinS.readObject();
                                         System.out.println("\n" + request.getMessage());
 
-                                        if(request.getMessage().equals("FAILURE - Já tem um grupo com esse nome.")){
+                                        if (request.getMessage().equals("FAILURE - Já tem um grupo com esse nome.")) {
                                             request.setGroupName(request.getOldGroupName());
-                                        }
-                                        else if (request.getMessage().equals("SERVER_OFF")){
+                                        } else if (request.getMessage().equals("SERVER_OFF")) {
                                             getNewServer();
                                         }
                                         break;
-                                    }
-                                    else if(option3 == 2){
+                                    } else if (option3 == 2) {
                                         //Remover membro
                                         request.setMessage("REMOVE_MEMBER");
                                         request.setContact(getNewUsername());
@@ -434,19 +428,17 @@ public class Cliente implements Runnable{
                                         request = (Request) oinS.readObject();
                                         System.out.println("\n" + request.getMessage());
 
-                                        if (request.getMessage().equals("SERVER_OFF")){
+                                        if (request.getMessage().equals("SERVER_OFF")) {
                                             getNewServer();
                                         }
                                         break;
-                                    }
-                                    else if(option3 == 3){
+                                    } else if (option3 == 3) {
                                         //Eliminar grupo
                                         ans = getConfirmation();
 
-                                        if(ans.equalsIgnoreCase("N")){
+                                        if (ans.equalsIgnoreCase("N")) {
                                             continue;
-                                        }
-                                        else if(ans.equalsIgnoreCase("S")){
+                                        } else if (ans.equalsIgnoreCase("S")) {
                                             request.setMessage("DELETE_GROUP");
 
                                             //Tentar enviar pedido de DELETE_GROUP ao servidor
@@ -455,23 +447,20 @@ public class Cliente implements Runnable{
                                             request = (Request) oinS.readObject();
                                             System.out.println("\n" + request.getMessage());
 
-                                            if (request.getMessage().equals("SERVER_OFF")){
+                                            if (request.getMessage().equals("SERVER_OFF")) {
                                                 getNewServer();
                                             }
-                                        }
-                                        else {
+                                        } else {
                                             System.out.println("\nResposta inválida.");
                                             continue;
                                         }
                                         break;
-                                    }
-                                    else if(option3 != 0){
+                                    } else if (option3 != 0) {
                                         //Opção inválida
                                         System.out.println("\nOpção inválida.");
                                     }
                                 } while (option3 != 0);
-                            }
-                            else if (option2 == 5){
+                            } else if (option2 == 5) {
                                 request.setMessage("GET_PENDING_GROUP_REQUESTS");
                                 request.getPendingJoinRequests().clear();
                                 if (sendMessage(request, oout) == 0) continue;
@@ -481,64 +470,63 @@ public class Cliente implements Runnable{
                                     if (request.isGroupOwner()) {
                                         request.getAcceptRejectIgnoreRequests().clear();
                                         //for (String s : request.getListaGruposAdmin()) {
-                                            //System.out.println("Pedidos pendentes de entrada no grupo '" + s + "' :");
-                                            for (String n : request.getPendingJoinRequests()) {
-                                                System.out.println(n);
-                                            }
+                                        //System.out.println("Pedidos pendentes de entrada no grupo '" + s + "' :");
+                                        for (String n : request.getPendingJoinRequests()) {
+                                            System.out.println(n);
+                                        }
                                         //}
 
-                                       // for (String n : request.getListaGruposAdmin()) {
-                                            //System.out.println("---------- " + n + " ----------");
-                                            System.out.println("Escolha uma das seguintes opcoes: ");
-                                            System.out.println("\n1 - Aceitar todos");
-                                            System.out.println("2 - Rejeitar todos");
-                                            System.out.println("3 - Ignorar todos");
-                                            System.out.println("4 - Aceitar, rejeitar e ignorar");
+                                        // for (String n : request.getListaGruposAdmin()) {
+                                        //System.out.println("---------- " + n + " ----------");
+                                        System.out.println("Escolha uma das seguintes opcoes: ");
+                                        System.out.println("\n1 - Aceitar todos");
+                                        System.out.println("2 - Rejeitar todos");
+                                        System.out.println("3 - Ignorar todos");
+                                        System.out.println("4 - Aceitar, rejeitar e ignorar");
 
-                                            while (!sc.hasNextInt()) ;
+                                        while (!sc.hasNextInt()) ;
 
-                                            option = sc.nextInt();
+                                        option = sc.nextInt();
 
-                                            if (option == 1) {
-                                                request.setMessage("ACCEPT_ALL_GROUP_REQUESTS");
-                                            } else if (option == 2) {
-                                                request.setMessage("REJECT_ALL_GROUP_REQUESTS");
-                                            } else if (option == 3) {
-                                                request.setMessage("IGNORE_ALL_GROUP_REQUESTS");
-                                            } else if (option == 4) {
-                                                System.out.println("1, 2, 3 e 4 para Aceitar, Rejeitar, Ignorar e Ignorar resto, respetivamente:");
-                                                request.setMessage("ACCEPT_GROUP_REQUESTS");
-                                                for (String s : request.getPendingJoinRequests()) {
-                                                    System.out.println(s);
-                                                    option2 = 0;
-                                                    while (option2 < 1 || option2 > 3) {
-                                                        System.out.print("Opcao: ");
+                                        if (option == 1) {
+                                            request.setMessage("ACCEPT_ALL_GROUP_REQUESTS");
+                                        } else if (option == 2) {
+                                            request.setMessage("REJECT_ALL_GROUP_REQUESTS");
+                                        } else if (option == 3) {
+                                            request.setMessage("IGNORE_ALL_GROUP_REQUESTS");
+                                        } else if (option == 4) {
+                                            System.out.println("1, 2, 3 e 4 para Aceitar, Rejeitar, Ignorar e Ignorar resto, respetivamente:");
+                                            request.setMessage("ACCEPT_GROUP_REQUESTS");
+                                            for (String s : request.getPendingJoinRequests()) {
+                                                System.out.println(s);
+                                                option2 = 0;
+                                                while (option2 < 1 || option2 > 3) {
+                                                    System.out.print("Opcao: ");
 
-                                                        while (!sc.hasNextInt()) ;
-                                                        option2 = sc.nextInt();
+                                                    while (!sc.hasNextInt()) ;
+                                                    option2 = sc.nextInt();
 
-                                                        if (option2 < 1 || option2 > 4)
-                                                            System.out.println("Essa opcao nao existe.");
-                                                    }
-
-                                                    if (option2 == 4) {
-                                                        int index = request.getPendingJoinRequests().indexOf(s);
-                                                        for (int i = index; i < request.getPendingJoinRequests().size(); i++) {
-                                                            request.setAcceptRejectIgnoreRequests(3);
-                                                        }
-                                                        break;
-                                                    } else request.setAcceptRejectIgnoreRequests(option2);
+                                                    if (option2 < 1 || option2 > 4)
+                                                        System.out.println("Essa opcao nao existe.");
                                                 }
+
+                                                if (option2 == 4) {
+                                                    int index = request.getPendingJoinRequests().indexOf(s);
+                                                    for (int i = index; i < request.getPendingJoinRequests().size(); i++) {
+                                                        request.setAcceptRejectIgnoreRequests(3);
+                                                    }
+                                                    break;
+                                                } else request.setAcceptRejectIgnoreRequests(option2);
                                             }
                                         }
+                                    }
                                     //}
                                     if (sendMessage(request, oout) == 0) continue;
 
                                     request = (Request) oinS.readObject();
                                     System.out.println("\n" + request.getMessage());
                                 }
-                            }
-                            else if(option2 == 6){
+                            } else if (option2 == 6) {
                                 //Sair de um grupo
                                 request.setMessage("LEAVE_GROUP");
                                 request.setGroupName(getNewGroupName());
@@ -549,28 +537,29 @@ public class Cliente implements Runnable{
                                 request = (Request) oinS.readObject();
                                 System.out.println("\n" + request.getMessage());
 
-                                if (request.getMessage().equals("SERVER_OFF")){
+                                if (request.getMessage().equals("SERVER_OFF")) {
                                     getNewServer();
                                 }
-                            }
-                            else if(option2 != 0){
+                            } else if (option2 != 0) {
                                 //Opção inválida
                                 System.out.println("\nOpção inválida.");
                             }
-                        } while(option2 != 0);
-                    }
-                    else if(option == 3){
+                        } while (option2 != 0);
+                    } else if (option == 3) {
                         //Definições
-                        do{
+                        do {
                             System.out.println("\n\n1 - Alterar username");
                             System.out.println("2 - Alterar password");
                             System.out.println("0 - Voltar");
 
                             System.out.print("\nOpção: ");
-                            while (!sc.hasNextInt());
+                            while (!sc.hasNextInt()) {
+                                System.out.println("\nOpcao invalida");
+                                sc.nextLine();
+                            }
                             option2 = sc.nextInt();
 
-                            if(option2 == 1){
+                            if (option2 == 1) {
                                 //Alterar username
                                 request.setMessage("CHANGE_USERNAME");
                                 request.setOldUsername(request.getUsername());
@@ -582,14 +571,12 @@ public class Cliente implements Runnable{
                                 request = (Request) oinS.readObject();
                                 System.out.println("\n" + request.getMessage());
 
-                                if(request.getMessage().equals("FAILURE - Esse username já está a ser usado")){
+                                if (request.getMessage().equals("FAILURE - Esse username já está a ser usado")) {
                                     request.setUsername(request.getOldUsername());
-                                }
-                                else if (request.getMessage().equals("SERVER_OFF")){
+                                } else if (request.getMessage().equals("SERVER_OFF")) {
                                     getNewServer();
                                 }
-                            }
-                            else if(option2 == 2){
+                            } else if (option2 == 2) {
                                 //Alterar password
                                 request.setMessage("CHANGE_PASSWORD");
                                 request.setOldPassword(request.getPassword());
@@ -601,32 +588,27 @@ public class Cliente implements Runnable{
                                 request = (Request) oinS.readObject();
                                 System.out.println("\n" + request.getMessage());
 
-                                if(request.getMessage().equals("FAILURE")){
+                                if (request.getMessage().equals("FAILURE")) {
                                     request.setPassword(request.getOldPassword());
-                                }
-                                else if (request.getMessage().equals("SERVER_OFF")){
+                                } else if (request.getMessage().equals("SERVER_OFF")) {
                                     getNewServer();
                                 }
-                            }
-                            else if(option2 != 0){
+                            } else if (option2 != 0) {
                                 //Opção inválida
                                 System.out.println("\nOpção inválida.");
                             }
-                        } while(option2 != 0);
-                    }
-                    else if(option == 0){
+                        } while (option2 != 0);
+                    } else if (option == 0) {
                         //Sair
                         SocketGRDS.close();
                         socket.close();
                         return;
-                    }
-                    else {
+                    } else {
                         //Opção inválida
                         System.out.println("\nOpção inválida.\n");
                     }
-                }
-                else{
-                    if(option == 1){
+                } else {
+                    if (option == 1) {
                         //Login
                         request.setMessage("LOGIN");
                         getUserCredentials(credentials, request.getMessage());
@@ -643,12 +625,10 @@ public class Cliente implements Runnable{
                             request.setSession(true);
                             Runnable r = new Cliente();
                             new Thread(r).start();
-                        }
-                        else if (request.getMessage().equals("SERVER_OFF")){
+                        } else if (request.getMessage().equals("SERVER_OFF")) {
                             getNewServer();
                         }
-                    }
-                    else if(option == 2){
+                    } else if (option == 2) {
                         //Criar conta
                         request.setMessage("CREATE_ACCOUNT");
                         getUserCredentials(credentials, request.getMessage());
@@ -664,21 +644,17 @@ public class Cliente implements Runnable{
 
                         if (request.getMessage().equals(null)) {
                             System.out.println("\nErro ao tentar criar conta.\n");
-                        }
-                        else if (request.getMessage().equals("SERVER_OFF")){
+                        } else if (request.getMessage().equals("SERVER_OFF")) {
                             getNewServer();
-                        }
-                        else if (request.getMessage().equals("SUCCESS")) {
+                        } else if (request.getMessage().equals("SUCCESS")) {
                             request.setSession(true);
                         }
-                    }
-                    else if(option == 0){
+                    } else if (option == 0) {
                         //Sair
                         SocketGRDS.close();
                         socket.close();
                         return;
-                    }
-                    else {
+                    } else {
                         //Opção inválida
                         System.out.println("\nOpção inválida.\n");
                     }
@@ -729,10 +705,10 @@ public class Cliente implements Runnable{
         }
     }
 
-    public static String getNewUsername(){
+    public static String getNewUsername() {
         Scanner sc = new Scanner(System.in);
 
-        if(request.getMessage().equalsIgnoreCase("ADD_CONTACT") || request.getMessage().equalsIgnoreCase("REMOVE_CONTACT") || request.getMessage().equalsIgnoreCase("REMOVE_MEMBER"))
+        if (request.getMessage().equalsIgnoreCase("ADD_CONTACT") || request.getMessage().equalsIgnoreCase("REMOVE_CONTACT") || request.getMessage().equalsIgnoreCase("REMOVE_MEMBER"))
             System.out.print("\nNome contacto: ");
         else
             System.out.print("\nNovo username: ");
@@ -740,17 +716,17 @@ public class Cliente implements Runnable{
         return sc.nextLine();
     }
 
-    public static String getNewPassword(){
+    public static String getNewPassword() {
         Scanner sc = new Scanner(System.in);
 
         System.out.print("\nNova password: ");
         return sc.nextLine();
     }
 
-    public static String getNewGroupName(){
+    public static String getNewGroupName() {
         Scanner sc = new Scanner(System.in);
 
-        if(request.getMessage().equalsIgnoreCase("LIST_MEMBERS_GROUP"))
+        if (request.getMessage().equalsIgnoreCase("LIST_MEMBERS_GROUP"))
             System.out.print("\nGrupo a editar: ");
         else if (request.getMessage().equalsIgnoreCase("CHANGE_GROUP_NAME"))
             System.out.print("\nNovo nome para o grupo: ");
@@ -760,7 +736,7 @@ public class Cliente implements Runnable{
         return sc.nextLine();
     }
 
-    public static String getConfirmation(){
+    public static String getConfirmation() {
         Scanner sc = new Scanner(System.in);
 
         System.out.println("\nTem a certeza que pretende eliminar este grupo? (S/N)");
@@ -804,7 +780,7 @@ public class Cliente implements Runnable{
 
                 newServer = (Servidor) oin.readObject();
 
-                if (newServer.getListeningPort() != 0){
+                if (newServer.getListeningPort() != 0) {
                     System.out.println("\nNovo endereço IP: " + newServer.getServerAddress().toString());
                     System.out.println("Novo porto de escuta: " + newServer.getListeningPort());
                     socket = new Socket(newServer.getServerAddress(), newServer.getListeningPort());

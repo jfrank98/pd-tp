@@ -20,7 +20,7 @@ public class Servidor implements Runnable{
     private static final String JDBC_DRIVER = "com.mysql.cj.jdbc.Driver";
     private static final String DB_URL = "jdbc:mysql://localhost:3306/pd_chat";
     private static final String USER = "root";
-    private static final String PASS = "rootpw";
+    private static final String PASS = "root";
     private static ArrayList<Socket> listClientSockets = new ArrayList<>();
     private static ServerSocket listeningSocket;
     private static String command = "";

@@ -55,7 +55,7 @@ public class ThreadClient extends Thread{
             return;
         }
 
-        Request req;
+        Request req = new Request();
 
         while (true) {
             try {
@@ -64,11 +64,17 @@ public class ThreadClient extends Thread{
                     req = (Request) oin.readObject();
                 }catch(EOFException | SocketException e) {
                     System.out.println("\nO cliente da thread com ID " + Thread.currentThread().getId() + " saiu.");
+
+                    if(req.getID() != -1)
+                        logout(req.getID());
+
                     socket.close();
                     return;
                 }
 
                 if ((req == null) || req.getMessage().equalsIgnoreCase("QUIT") ) {
+                    if(req.getID() != -1)
+                            logout(req.getID());
                     socket.close();
                     return;
                 } else {
@@ -222,10 +228,11 @@ public class ThreadClient extends Thread{
         String ans = null;
 
         try {
-            PreparedStatement ps = conn.prepareStatement("INSERT INTO User (password, username, name) VALUES (?, ?, ?)");
+            PreparedStatement ps = conn.prepareStatement("INSERT INTO User (password, username, name, session) VALUES (?, ?, ?, ?)");
             ps.setString(1, p);
             ps.setString(2, u);
             ps.setString(3, n);
+            ps.setBoolean(4, true);
 
             ResultSet r = stmt.executeQuery(COUNT_USERS_QUERY);
             r.next();
@@ -268,9 +275,25 @@ public class ThreadClient extends Thread{
         try {
             ResultSet rs = stmt.executeQuery(GET_USERS_QUERY);
 
+            PreparedStatement ps2 = conn.prepareStatement("SELECT * FROM User WHERE username = ?");
+            ps2.setString(1, u);
+
+            ResultSet rs2 = ps2.executeQuery();
+            rs2.next();
+
+            if(rs2.getBoolean(5) == true){
+                ans = "FAILURE - Utilizador já logado.";
+                return ans;
+            }
+
+            PreparedStatement ps = conn.prepareStatement("UPDATE User SET session = ? WHERE username = ?");
+            ps.setBoolean(1, true);
+            ps.setString(2, u);
+
             while (rs.next()) {
                 if (u.equalsIgnoreCase(rs.getString(3)) && p.equalsIgnoreCase(rs.getString(2))) {
                     ans = "SUCCESS";
+                    ps.executeUpdate();
                     break;
                 }
             }
@@ -1103,5 +1126,17 @@ public class ThreadClient extends Thread{
         }
 
         return ans;
+    }
+
+    public void logout(int id){
+        try{
+            PreparedStatement ps = conn.prepareStatement("UPDATE User SET session = ? WHERE user_id = ?");
+            ps.setBoolean(1, false);
+            ps.setInt(2, id);
+
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
 }
