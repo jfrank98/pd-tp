@@ -13,21 +13,27 @@ import java.util.ArrayList;
 import java.util.Arrays;
 
 public class ThreadClient extends Thread{
+
     private Socket socket;
     private String dbAddress;
     private static final String GET_USERS_QUERY = "SELECT * FROM User;";
     private static final String GET_USERNAMES_QUERY = "SELECT username FROM User;";
     private static final String GET_GROUPS_QUERY = "SELECT * FROM `Group`;";
     private static final String GET_CONTACTS_QUERY = "SELECT * FROM UserContact;";
-    private static final String GET_USERINGROUP_QUERY = "SELECT * FROM Useringroup;";
+    private static final String GET_USERINGROUP_QUERY = "SELECT * FROM UserInGroup;";
     private static final String COUNT_USERS_QUERY = "SELECT COUNT(*) FROM User;";
     private static final String COUNT_GROUPS_QUERY = "SELECT COUNT(*) FROM `Group`;";
+    private static final String COUNT_USERS_IN_GROUP_QUERY = "SELECT COUNT(*) FROM UserInGroup;";
+    private static final String COUNT_USER_CONTACTS_QUERY = "SELECT COUNT(*) FROM UserContact";
     private Statement stmt;
     private Connection conn;
     private ArrayList<String> listaC = new ArrayList<>();
     private ArrayList<String> listaG = new ArrayList<>();
     private ArrayList<String> listaGAmin = new ArrayList<>();
     private ArrayList<String> listaM = new ArrayList<>();
+    private ArrayList<String> pendingJoinRequests = new ArrayList<>();
+    private ArrayList<String> pendingContactRequests = new ArrayList<>();
+    private ArrayList<Integer> pendingJoinRequestsGroupId = new ArrayList<>();
     private int contactID;
     private int groupID;
     private int adminID;
@@ -96,12 +102,14 @@ public class ThreadClient extends Thread{
                         req.getListaContactos().clear();
                         req.setMessage(listContacts(req.getID()));
 
-                        for (String c : listaC) {
-                            req.addContactSuccess(c);
+                        if (listaC.size() > 0) {
+                            for (String c : listaC) {
+                                req.addContactSuccess(c);
+                            }
                         }
                     }
                     else if (req.getMessage().equalsIgnoreCase("ADD_CONTACT")){
-                        req.setMessage(addContact(req.getContact(), req.getID()));
+                        req.setMessage(addContact(req.getContact(), req.getID(), false));
                     }
                     else if (req.getMessage().equalsIgnoreCase("REMOVE_CONTACT")){
                         req.setMessage(removeContact(req.getContact(), req.getID()));
@@ -110,8 +118,10 @@ public class ThreadClient extends Thread{
                         req.getListaGrupos().clear();
                         req.setMessage(listGroups(req.getID()));
 
-                        for (String g : listaG) {
-                            req.addGroupSuccess(g);
+                        if (listaG.size() > 0) {
+                            for (String g : listaG) {
+                                req.addGroupSuccess(g);
+                            }
                         }
                     }
                     else if (req.getMessage().equalsIgnoreCase("JOIN_GROUP")){
@@ -119,14 +129,16 @@ public class ThreadClient extends Thread{
                     }
                     else if (req.getMessage().equalsIgnoreCase("CREATE_GROUP")){
                         req.setMessage(createGroup(req.getGroupName(), req.getID()));
-
+                        req.setGroupOwner(true);
                         joinGroup(req.getGroupName(), req.getID());
                     }
                     else if (req.getMessage().equalsIgnoreCase("LIST_ADMIN_GROUPS")){
                         req.setMessage(listGroupsAdmin(req.getID()));
 
-                        for (String g : listaGAmin) {
-                            req.addGroupAdminSuccess(g);
+                        if (listaGAmin.size() > 0) {
+                            for (String g : listaGAmin) {
+                                req.addGroupAdminSuccess(g);
+                            }
                         }
                     }
                     else if (req.getMessage().equalsIgnoreCase("LIST_MEMBERS_GROUP")){
@@ -146,15 +158,58 @@ public class ThreadClient extends Thread{
                     }
                     else if (req.getMessage().equalsIgnoreCase("DELETE_GROUP")){
                         req.setMessage(deleteGroup(req.getGroupName(), req.getID()));
+                        if (req.getListaGruposAdmin().isEmpty()) req.setGroupOwner(false);
                     }
                     else if (req.getMessage().equalsIgnoreCase("LEAVE_GROUP")){
                         req.setMessage(leaveGroup(req.getGroupName(), req.getID()));
                     }
-
-
+                    else if (req.getMessage().equalsIgnoreCase("GET_PENDING_GROUP_REQUESTS")){
+                        req.setMessage(checkNewGroupRequests(req.getID()));
+                        if (req.getMessage().equalsIgnoreCase("SUCCESS")){
+                            if (!pendingJoinRequests.isEmpty()) {
+                                req.setGroupOwner(true);
+                                for (String s : pendingJoinRequests)
+                                    req.setPendingJoinRequests(s);
+                                for (Integer a : pendingJoinRequestsGroupId)
+                                    req.setPendingJoinRequestsGroupId(a);
+                            }
+                        }
+                    }
+                    else if (req.getMessage().equalsIgnoreCase("GET_PENDING_CONTACT_REQUESTS")) {
+                        req.setMessage(checkNewContactRequests(req.getID()));
+                        if (req.getMessage().equalsIgnoreCase("SUCCESS")) {
+                            if (!pendingContactRequests.isEmpty()) {
+                                for (String s : pendingContactRequests)
+                                    req.setPendingContactRequests(s);
+                            }
+                        }
+                    }
+                    else if (req.getMessage().equalsIgnoreCase("ACCEPT_ALL_CONTACT_REQUESTS")) {
+                        req.setMessage(acceptAllContactRequests(req.getID()));
+                    }
+                    else if (req.getMessage().equalsIgnoreCase("REJECT_ALL_CONTACT_REQUESTS")) {
+                        req.setMessage(rejectAllContactRequests(req.getID()));
+                    }
+                    else if (req.getMessage().equalsIgnoreCase("IGNORE_ALL_CONTACT_REQUESTS")) {
+                        req.setMessage("SUCCESS");
+                    }
+                    else if (req.getMessage().equalsIgnoreCase("ACCEPT_CONTACT_REQUESTS")) {
+                        req.setMessage(manageContactRequests(req.getID(), req.getAcceptRejectIgnoreRequests(), req.getPendingContactRequests()));
+                    }
+                    else if (req.getMessage().equalsIgnoreCase("ACCEPT_GROUP_REQUESTS")) {
+                        req.setMessage(manageGroupRequests(req.getID(), req.getAcceptRejectIgnoreRequests(), req.getPendingJoinRequests(), req.getPendingJoinRequestsGroupId()));
+                    }
+                    else if (req.getMessage().equalsIgnoreCase("ACCEPT_ALL_GROUP_REQUESTS")){
+                        req.setMessage(acceptAllGroupRequests(req.getID()));
+                    }
+                    else if (req.getMessage().equalsIgnoreCase("REJECT_ALL_GROUP_REQUESTS")) {
+                        req.setMessage(rejectAllGroupRequests(req.getID()));
+                    }
+                    else if (req.getMessage().equalsIgnoreCase("IGNORE_ALL_GROUP_REQUESTS")) {
+                        req.setMessage("SUCCESS");
+                    }
                     //Envia resposta ao cliente
                     out.writeUnshared(req);
-                    out.flush();
                 }
             } catch (IOException | ClassNotFoundException e) {
                 System.out.println("\n" + e);
@@ -330,19 +385,43 @@ public class ThreadClient extends Thread{
         return name;
     }
 
-    public String listContacts(int id){
+    private String getUsernameByID(int id){
+        String username = null;
+
+        try {
+            Statement stmt2 = conn.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
+            ResultSet rs = stmt2.executeQuery(GET_USERS_QUERY);
+
+            while(rs.next()){
+                if (rs.getInt(1) == id){
+                    username = rs.getString(3);
+                }
+            }
+        } catch (SQLException throwables) {
+            throwables.printStackTrace();
+        }
+        return username;
+    }
+
+    private String listContacts(int id){
         String ans = "FAILURE";
         String contacto = "";
 
         listaC.clear();
 
         try {
-            ResultSet rs = stmt.executeQuery("SELECT * FROM UserContact WHERE user_id = " + id);
+            PreparedStatement ps = conn.prepareStatement("SELECT * FROM UserContact WHERE user_id = ? AND accepted = ?");
+            ps.setInt(1, id);
+            ps.setBoolean(2, true);
+
+            ResultSet rs = ps.executeQuery("SELECT * FROM UserContact WHERE user_id = " + id);
             ResultSet rs2;
-            Statement stmt2 = conn.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
+            PreparedStatement ps2 = conn.prepareStatement("SELECT * FROM User WHERE user_id = ?");
+
 
             while (rs.next()) {
-                rs2 = stmt2.executeQuery("SELECT * FROM User WHERE user_id = " + rs.getInt(2));
+                ps.setInt(1, rs.getInt(2));
+                rs2 = ps2.executeQuery();
                 rs2.next();
                 contacto = rs2.getString(3);
                 listaC.add(contacto);
@@ -356,7 +435,7 @@ public class ThreadClient extends Thread{
         return ans;
     }
 
-    public String addContact(String u, int id){
+    private String addContact(String u, int id, boolean accepted){
         String ans = "FAILURE";
         boolean encontrou = false;
         contactID = 0;
@@ -391,10 +470,13 @@ public class ThreadClient extends Thread{
                     return ans;
                 }
             }
+            PreparedStatement ps;
 
-            PreparedStatement ps = conn.prepareStatement("INSERT INTO UserContact (user_id, contact_id) VALUES (?, ?)");
+            ps = conn.prepareStatement("INSERT INTO UserContact (user_id, contact_id, accepted) VALUES (?, ?, ?)");
+
             ps.setInt(1, id);
             ps.setInt(2, contactID);
+            ps.setBoolean(3, accepted);
 
             ps.executeUpdate();
             ans = "SUCCESS";
@@ -406,7 +488,7 @@ public class ThreadClient extends Thread{
         return ans;
     }
 
-    public String removeContact(String u, int id){
+    private String removeContact(String u, int id){
         String ans = "FAILURE";
         boolean encontrou = false;
 
@@ -459,14 +541,14 @@ public class ThreadClient extends Thread{
         return ans;
     }
 
-    public String listGroups(int id){
+    private String listGroups(int id){
         String ans = "FAILURE";
         String grupo = "";
 
         listaG.clear();
 
         try {
-            ResultSet rs = stmt.executeQuery("SELECT * FROM useringroup WHERE group_user_id = " + id);
+            ResultSet rs = stmt.executeQuery("SELECT * FROM UserInGroup WHERE group_user_id = " + id);
             ResultSet rs2;
             Statement stmt2 = conn.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
 
@@ -485,7 +567,7 @@ public class ThreadClient extends Thread{
         return ans;
     }
 
-    public String joinGroup(String n, int id){
+    private String joinGroup(String n, int id){
         String ans = "FAILURE";
         boolean encontrou = false;
         adminID = 0;
@@ -517,16 +599,201 @@ public class ThreadClient extends Thread{
                 }
             }
 
-            PreparedStatement ps = conn.prepareStatement("INSERT INTO useringroup (group_group_id, group_admin, group_user_id) VALUES (?, ?, ?)");
+            PreparedStatement ps = conn.prepareStatement("INSERT INTO UserInGroup (group_group_id, group_admin, group_user_id, accepted) VALUES (?, ?, ?, ?)");
             ps.setInt(1, groupID);
             ps.setInt(2, adminID);
             ps.setInt(3, id);
+            if (adminID == id) ps.setBoolean(4, true);
+            else ps.setBoolean(4, false);
 
             ps.executeUpdate();
             ans = "SUCCESS";
 
         }catch(SQLException e){
             System.out.println("\n" + e);
+        }
+
+        return ans;
+    }
+
+    private String checkNewContactRequests(int id) {
+        String ans = "FAILURE";
+
+        try {
+            ResultSet rs = stmt.executeQuery(COUNT_USER_CONTACTS_QUERY);
+            rs.next();
+            int sizeUC = rs.getInt(1);
+
+            ResultSet rs2 = stmt.executeQuery(GET_CONTACTS_QUERY);
+
+            if (sizeUC > 0) {
+                while (rs2.next()) {
+                    if (rs2.getInt(1) == id) {
+                        if (rs2.getBoolean(3) == false) {
+                            System.out.println(getUsernameByID(rs2.getInt(2)));
+                            pendingContactRequests.add(getUsernameByID(rs2.getInt(2)));
+                            ans = "SUCCESS";
+                        }
+                    }
+                }
+            }
+        } catch (SQLException throwables) {
+            throwables.printStackTrace();
+        }
+        return ans;
+    }
+
+    private String checkNewGroupRequests(int id) {
+        String ans = "FAILURE";
+
+        try {
+
+            ResultSet rs = stmt.executeQuery(COUNT_USERS_IN_GROUP_QUERY);
+            rs.next();
+            int size = rs.getInt(1);
+
+            ResultSet rs2 = stmt.executeQuery(GET_USERINGROUP_QUERY);
+
+            if (size > 0){
+                while (rs2.next()) {
+                    if (id == rs2.getInt(2)) {
+                        if (rs2.getBoolean(4) == false){
+                            pendingJoinRequests.add(getUsernameByID(rs2.getInt(3)));
+                            pendingJoinRequestsGroupId.add(rs2.getInt(1));
+                            ans = "SUCCESS";
+                        }
+                    }
+                }
+            }
+        } catch (SQLException throwables) {
+            throwables.printStackTrace();
+        }
+        return ans;
+    }
+
+    public String acceptAllContactRequests(int id) {
+        String ans = "FAILURE";
+
+        try {
+            PreparedStatement ps = conn.prepareStatement("UPDATE UserContact SET accepted = ? WHERE user_id = ?");
+            ps.setBoolean(1, true);
+            ps.setInt(2, id);
+
+            ps.executeUpdate();
+            ans = "SUCCESS";
+        } catch (SQLException throwables) {
+            throwables.printStackTrace();
+        }
+
+        return ans;
+    }
+
+    public String rejectAllContactRequests(int id) {
+        String ans = "FAILURE";
+
+        try {
+            PreparedStatement ps = conn.prepareStatement("DELETE FROM UserContact WHERE accepted = ? AND user_id = ?");
+            ps.setBoolean(1, false);
+            ps.setInt(2, id);
+
+            ps.executeUpdate();
+            ans = "SUCCESS";
+        } catch (SQLException throwables) {
+            throwables.printStackTrace();
+        }
+
+        return ans;
+    }
+
+    public String manageContactRequests(int id, ArrayList<Integer> arr, ArrayList<String> req){
+        String ans = "FALSE";
+
+        try {
+            PreparedStatement ps = conn.prepareStatement("UPDATE UserContact SET accepted = ? WHERE user_id = ? AND contact_id = ?");
+            ps.setInt(2, id);
+
+            PreparedStatement ps2 = conn.prepareStatement("DELETE FROM UserContact WHERE user_id = ? AND contact_id = ?");
+            ps2.setInt(1, id);
+
+            for (int i : arr) {
+                if (i == 1){
+                    ps.setBoolean(1, true);
+                    ps.setInt(3, getIDFromDB(req.get(arr.indexOf(i))));
+                    addContact(getUsernameByID(id), getIDFromDB(req.get(arr.indexOf(i))), true);
+                    ps.executeUpdate();
+                }
+                else if (i == 2) {
+                    ps2.setInt(2, getIDFromDB(req.get(arr.indexOf(i))));
+                    ps2.executeUpdate();
+                }
+            }
+        } catch (SQLException throwables) {
+            throwables.printStackTrace();
+        }
+
+        return ans;
+    }
+
+    public String acceptAllGroupRequests(int id) {
+        String ans = "FAILURE";
+
+        try {
+            PreparedStatement ps = conn.prepareStatement("UPDATE UserInGroup SET accepted = ? WHERE group_admin = ?");
+            ps.setBoolean(1, true);
+            ps.setInt(2, id);
+
+            ps.executeUpdate();
+            ans = "SUCCESS";
+        } catch (SQLException throwables) {
+            throwables.printStackTrace();
+        }
+
+        return ans;
+    }
+
+    public String rejectAllGroupRequests(int id) {
+        String ans = "FAILURE";
+
+        try {
+            PreparedStatement ps = conn.prepareStatement("DELETE FROM UserInGroup WHERE accepted = ? AND group_admin = ?");
+            ps.setBoolean(1, false);
+            ps.setInt(2, id);
+
+            ps.executeUpdate();
+            ans = "SUCCESS";
+        } catch (SQLException throwables) {
+            throwables.printStackTrace();
+        }
+
+        return ans;
+    }
+
+    public String manageGroupRequests(int id, ArrayList<Integer> arr, ArrayList<String> req, ArrayList<Integer> gid){
+        String ans = "FALSE";
+
+        try {
+            PreparedStatement ps = conn.prepareStatement("UPDATE UserInGroup SET accepted = ? WHERE group_user_id = ? AND group_group_id = ?");
+            ps.setInt(2, id);
+
+            PreparedStatement ps2 = conn.prepareStatement("DELETE FROM UserInGroup WHERE group_user_id = ? AND group_group_id = ?");
+
+
+            for (int i : arr) {
+                if (i == 1){
+                    ps.setBoolean(1, true);
+                    ps.setInt(2, getIDFromDB(req.get(arr.indexOf(i))));
+                    ps.setInt(3, gid.get(arr.indexOf(i)));
+                    addContact(getUsernameByID(id), getIDFromDB(req.get(arr.indexOf(i))), true);
+                    ps.executeUpdate();
+                }
+                else if (i == 2) {
+                    ps2.setInt(1, getIDFromDB(req.get(arr.indexOf(i))));
+                    ps2.setInt(2, gid.get(arr.indexOf(i)));
+                    ps2.executeUpdate();
+                }
+            }
+        } catch (SQLException throwables) {
+            throwables.printStackTrace();
         }
 
         return ans;
@@ -630,7 +897,7 @@ public class ThreadClient extends Thread{
 
             ResultSet rs2;
             Statement stmt2 = conn.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
-            rs2 = stmt2.executeQuery("SELECT * FROM useringroup WHERE group_group_id = " + groupID);
+            rs2 = stmt2.executeQuery("SELECT * FROM UserInGroup WHERE group_group_id = " + groupID);
 
             ResultSet rs3;
             Statement stmt3 = conn.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
@@ -741,7 +1008,7 @@ public class ThreadClient extends Thread{
                 return ans;
             }
 
-            PreparedStatement ps = conn.prepareStatement("DELETE FROM useringroup WHERE group_group_id = ? AND group_user_id = ?");
+            PreparedStatement ps = conn.prepareStatement("DELETE FROM UserInGroup WHERE group_group_id = ? AND group_user_id = ?");
             ps.setInt(1, groupID);
             ps.setInt(2, contactID);
 
@@ -773,7 +1040,7 @@ public class ThreadClient extends Thread{
 
             ps.execute();
 
-            PreparedStatement ps1 = conn.prepareStatement("DELETE FROM useringroup WHERE group_group_id = ?");
+            PreparedStatement ps1 = conn.prepareStatement("DELETE FROM UserInGroup WHERE group_group_id = ?");
             ps1.setInt(1, groupID);
 
             ps1.executeUpdate();
@@ -824,7 +1091,7 @@ public class ThreadClient extends Thread{
 
             ps.executeUpdate();
 
-            PreparedStatement ps1 = conn.prepareStatement("DELETE FROM useringroup WHERE group_user_id = ? AND group_group_id = ?");
+            PreparedStatement ps1 = conn.prepareStatement("DELETE FROM UserInGroup WHERE group_user_id = ? AND group_group_id = ?");
             ps1.setInt(1, id);
             ps1.setInt(2, groupID);
 

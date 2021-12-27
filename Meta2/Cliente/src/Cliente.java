@@ -3,7 +3,7 @@ import java.net.*;
 import java.util.ArrayList;
 import java.util.Scanner;
 
-public class Cliente {
+public class Cliente implements Runnable{
     public static final int MAX_SIZE = 1024;
     public static final String ADDR_PORT_REQUEST = "GET_ADDR_PORT_TCP";
     public static final String SERVER_REQUEST = "SERVER_REQUEST";
@@ -14,6 +14,10 @@ public class Cliente {
     private static int PortGRDS, serverPort;
     private static ObjectInputStream oin, oinS;
     private static ObjectOutputStream oout;
+    private static boolean getRequests = false;
+    private static boolean newServer = false;
+    private int lastContactReqSize = 0;
+    private int lastGroupReqSize = 0;
 
     public static void main(String args[]) {
         DatagramPacket packet;
@@ -108,6 +112,7 @@ public class Cliente {
 //            new Thread(r).start();
 
             while (true) {
+                newServer = true;
 
                 if (!request.isSession()) {
                     System.out.println("\n1 - Iniciar sessão");
@@ -121,16 +126,20 @@ public class Cliente {
                 System.out.println("0 - Sair");
                 System.out.print("\nOpção: ");
 
+
+
                 while (!sc.hasNextInt());
                 option = sc.nextInt();
 
                 if(request.isSession()){
+
                     if(option == 1){
                         //Contactos
                         do{
                             System.out.println("\n\n1 - Lista de contactos");
                             System.out.println("2 - Adicionar contacto");
                             System.out.println("3 - Eliminar contacto");
+                            System.out.println("4 - Pedidos de contacto pendentes");
                             System.out.println("0 - Voltar");
 
                             System.out.print("\nOpção: ");
@@ -142,7 +151,8 @@ public class Cliente {
                                 request.setMessage("LIST_CONTACTS");
 
                                 //Tentar enviar pedido de LIST_CONTACTS ao servidor
-                                sendMessage(request, oout);
+                                if (sendMessage(request, oout) == 0) continue;
+
 
                                 request = (Request) oinS.readObject();
 
@@ -167,7 +177,7 @@ public class Cliente {
                                 request.setContact(getNewUsername());
 
                                 //Tentar enviar pedido de ADD_CONTACT ao servidor
-                                sendMessage(request, oout);
+                                if (sendMessage(request, oout) == 0) continue;
 
                                 request = (Request) oinS.readObject();
                                 System.out.println("\n" + request.getMessage());
@@ -182,13 +192,75 @@ public class Cliente {
                                 request.setContact(getNewUsername());
 
                                 //Tentar enviar pedido de REMOVE_CONTACT ao servidor
-                                sendMessage(request, oout);
+                                if (sendMessage(request, oout) == 0) continue;
 
                                 request = (Request) oinS.readObject();
                                 System.out.println("\n" + request.getMessage());
 
                                 if (request.getMessage().equals("SERVER_OFF")){
                                     getNewServer();
+                                }
+                            }
+                            else if (option2 == 4) {
+                                request.setMessage("GET_PENDING_CONTACT_REQUESTS");
+                                request.getPendingContactRequests().clear();
+                                if (sendMessage(request, oout) == 0) continue;
+                                request = (Request) oinS.readObject();
+
+                                if (!request.getPendingContactRequests().isEmpty()){
+                                    System.out.println("Pedidos de contacto pendentes:");
+                                    for (String s : request.getPendingContactRequests()){
+                                        System.out.println(s);
+                                    }
+                                    request.getAcceptRejectIgnoreRequests().clear();
+                                    System.out.println("Escolha uma das seguintes opcoes: ");
+                                    System.out.println("\n1 - Aceitar todos");
+                                    System.out.println("2 - Rejeitar todos");
+                                    System.out.println("3 - Ignorar todos");
+                                    System.out.println("4 - Aceitar, rejeitar e ignorar");
+
+                                    while(!sc.hasNextInt());
+
+                                    option = sc.nextInt();
+
+                                    if (option == 1) {
+                                        request.setMessage("ACCEPT_ALL_CONTACT_REQUESTS");
+                                    }
+                                    else if (option == 2) {
+                                        request.setMessage("REJECT_ALL_CONTACT_REQUESTS");
+                                    }
+                                    else if (option == 3) {
+                                        request.setMessage("IGNORE_ALL_CONTACT_REQUESTS");
+                                    }
+                                    else if (option == 4){
+                                        request.setMessage("ACCEPT_CONTACT_REQUESTS");
+                                        System.out.println("1, 2, 3 e 4 para Aceitar, Rejeitar, Ignorar e Ignorar resto, respetivamente:");
+                                        for (String s : request.getPendingContactRequests()){
+                                            System.out.println(s);
+                                            option2 = 0;
+                                            while(option2 < 1 || option2 > 3) {
+                                                System.out.print("Opcao: ");
+
+                                                while(!sc.hasNextInt());
+                                                option2 = sc.nextInt();
+
+                                                if (option2 < 1 || option2 > 4) System.out.println("Essa opcao nao existe.");
+                                            }
+
+                                            if (option2 == 4) {
+                                                int index = request.getPendingContactRequests().indexOf(s);
+                                                for (int i = index; i < request.getPendingContactRequests().size(); i++){
+                                                    request.setAcceptRejectIgnoreRequests(3);
+                                                }
+                                                break;
+                                            }
+                                            else request.setAcceptRejectIgnoreRequests(option2);
+                                        }
+                                    }
+                                    if (sendMessage(request, oout) == 0) continue;
+
+                                    request = (Request) oinS.readObject();
+                                    System.out.println("\n" + request.getMessage());
                                 }
                             }
                             else if(option2 != 0){
@@ -204,7 +276,8 @@ public class Cliente {
                             System.out.println("2 - Aderir a grupo");
                             System.out.println("3 - Criar grupo");
                             System.out.println("4 - Editar grupo");
-                            System.out.println("5 - Sair de um grupo");
+                            System.out.println("5 - Aceitar/Rejeitar/Ignorar pedidos de entrada pendentes");
+                            System.out.println("6 - Sair de um grupo");
                             System.out.println("0 - Voltar");
 
                             System.out.print("\nOpção: ");
@@ -216,7 +289,7 @@ public class Cliente {
                                 request.setMessage("LIST_GROUPS");
 
                                 //Tentar enviar pedido de LIST_GROUPS ao servidor
-                                sendMessage(request, oout);
+                                if (sendMessage(request, oout) == 0) continue;
 
                                 request = (Request) oinS.readObject();
 
@@ -241,7 +314,7 @@ public class Cliente {
                                 request.setGroupName(getNewGroupName());
 
                                 //Tenta enviar pedido de JOIN_GROUP ao servidor
-                                sendMessage(request, oout);
+                                if (sendMessage(request, oout) == 0) continue;
 
                                 request = (Request) oinS.readObject();
                                 System.out.println("\n" + request.getMessage());
@@ -256,7 +329,7 @@ public class Cliente {
                                 request.setGroupName(getNewGroupName());
 
                                 //Tenta enviar pedido de CREATE_GROUP ao servidor
-                                sendMessage(request, oout);
+                                if (sendMessage(request, oout) == 0) continue;
 
                                 request = (Request) oinS.readObject();
                                 System.out.println("\n" + request.getMessage());
@@ -275,7 +348,7 @@ public class Cliente {
                                 request.setMessage("LIST_ADMIN_GROUPS");
 
                                 //Tentar enviar pedido de LIST_ADMIN_GROUPS ao servidor
-                                sendMessage(request, oout);
+                                if (sendMessage(request, oout) == 0) continue;
 
                                 request = (Request) oinS.readObject();
 
@@ -299,7 +372,7 @@ public class Cliente {
                                 request.setGroupName(getNewGroupName());
 
                                 //Tentar enviar pedido de LIST_MEMBERS_GROUP ao servidor
-                                sendMessage(request, oout);
+                                if (sendMessage(request, oout) == 0) continue;
 
                                 request = (Request) oinS.readObject();
 
@@ -337,7 +410,7 @@ public class Cliente {
                                         request.setGroupName(getNewGroupName());
 
                                         //Tenta enviar pedido de CHANGE_GROUP_NAME ao servidor
-                                        sendMessage(request, oout);
+                                        if (sendMessage(request, oout) == 0) continue;
 
                                         request = (Request) oinS.readObject();
                                         System.out.println("\n" + request.getMessage());
@@ -356,7 +429,7 @@ public class Cliente {
                                         request.setContact(getNewUsername());
 
                                         //Tentar enviar pedido de REMOVE_MEMBER ao servidor
-                                        sendMessage(request, oout);
+                                        if (sendMessage(request, oout) == 0) continue;
 
                                         request = (Request) oinS.readObject();
                                         System.out.println("\n" + request.getMessage());
@@ -377,7 +450,7 @@ public class Cliente {
                                             request.setMessage("DELETE_GROUP");
 
                                             //Tentar enviar pedido de DELETE_GROUP ao servidor
-                                            sendMessage(request, oout);
+                                            if (sendMessage(request, oout) == 0) continue;
 
                                             request = (Request) oinS.readObject();
                                             System.out.println("\n" + request.getMessage());
@@ -398,13 +471,80 @@ public class Cliente {
                                     }
                                 } while (option3 != 0);
                             }
-                            else if(option2 == 5){
+                            else if (option2 == 5){
+                                request.setMessage("GET_PENDING_GROUP_REQUESTS");
+                                request.getPendingJoinRequests().clear();
+                                if (sendMessage(request, oout) == 0) continue;
+                                request = (Request) oinS.readObject();
+
+                                if (request.getMessage().equalsIgnoreCase("SUCCESS")) {
+                                    if (request.isGroupOwner()) {
+                                        request.getAcceptRejectIgnoreRequests().clear();
+                                        //for (String s : request.getListaGruposAdmin()) {
+                                            //System.out.println("Pedidos pendentes de entrada no grupo '" + s + "' :");
+                                            for (String n : request.getPendingJoinRequests()) {
+                                                System.out.println(n);
+                                            }
+                                        //}
+
+                                       // for (String n : request.getListaGruposAdmin()) {
+                                            //System.out.println("---------- " + n + " ----------");
+                                            System.out.println("Escolha uma das seguintes opcoes: ");
+                                            System.out.println("\n1 - Aceitar todos");
+                                            System.out.println("2 - Rejeitar todos");
+                                            System.out.println("3 - Ignorar todos");
+                                            System.out.println("4 - Aceitar, rejeitar e ignorar");
+
+                                            while (!sc.hasNextInt()) ;
+
+                                            option = sc.nextInt();
+
+                                            if (option == 1) {
+                                                request.setMessage("ACCEPT_ALL_GROUP_REQUESTS");
+                                            } else if (option == 2) {
+                                                request.setMessage("REJECT_ALL_GROUP_REQUESTS");
+                                            } else if (option == 3) {
+                                                request.setMessage("IGNORE_ALL_GROUP_REQUESTS");
+                                            } else if (option == 4) {
+                                                System.out.println("1, 2, 3 e 4 para Aceitar, Rejeitar, Ignorar e Ignorar resto, respetivamente:");
+                                                request.setMessage("ACCEPT_GROUP_REQUESTS");
+                                                for (String s : request.getPendingJoinRequests()) {
+                                                    System.out.println(s);
+                                                    option2 = 0;
+                                                    while (option2 < 1 || option2 > 3) {
+                                                        System.out.print("Opcao: ");
+
+                                                        while (!sc.hasNextInt()) ;
+                                                        option2 = sc.nextInt();
+
+                                                        if (option2 < 1 || option2 > 4)
+                                                            System.out.println("Essa opcao nao existe.");
+                                                    }
+
+                                                    if (option2 == 4) {
+                                                        int index = request.getPendingJoinRequests().indexOf(s);
+                                                        for (int i = index; i < request.getPendingJoinRequests().size(); i++) {
+                                                            request.setAcceptRejectIgnoreRequests(3);
+                                                        }
+                                                        break;
+                                                    } else request.setAcceptRejectIgnoreRequests(option2);
+                                                }
+                                            }
+                                        }
+                                    //}
+                                    if (sendMessage(request, oout) == 0) continue;
+
+                                    request = (Request) oinS.readObject();
+                                    System.out.println("\n" + request.getMessage());
+                                }
+                            }
+                            else if(option2 == 6){
                                 //Sair de um grupo
                                 request.setMessage("LEAVE_GROUP");
                                 request.setGroupName(getNewGroupName());
 
                                 //Tentar enviar pedido de LEAVE_GROUP ao servidor
-                                sendMessage(request, oout);
+                                if (sendMessage(request, oout) == 0) continue;
 
                                 request = (Request) oinS.readObject();
                                 System.out.println("\n" + request.getMessage());
@@ -437,7 +577,7 @@ public class Cliente {
                                 request.setUsername(getNewUsername());
 
                                 //Tenta enviar pedido de CHANGE_USERNAME ao servidor
-                                sendMessage(request, oout);
+                                if (sendMessage(request, oout) == 0) continue;
 
                                 request = (Request) oinS.readObject();
                                 System.out.println("\n" + request.getMessage());
@@ -456,7 +596,7 @@ public class Cliente {
                                 request.setPassword(getNewPassword());
 
                                 //Tenta enviar pedido de CHANGE_PASSWORD ao servidor
-                                sendMessage(request, oout);
+                                if (sendMessage(request, oout) == 0) continue;
 
                                 request = (Request) oinS.readObject();
                                 System.out.println("\n" + request.getMessage());
@@ -494,13 +634,15 @@ public class Cliente {
                         request.setPassword(credentials.get(1));
 
                         //Tenta enviar pedido de LOGIN ao servidor
-                        sendMessage(request, oout);
+                        if (sendMessage(request, oout) == 0) continue;
 
                         request = (Request) oinS.readObject();
                         System.out.println("\n" + request.getMessage());
 
                         if (request.getMessage().equals("SUCCESS")) {
                             request.setSession(true);
+                            Runnable r = new Cliente();
+                            new Thread(r).start();
                         }
                         else if (request.getMessage().equals("SERVER_OFF")){
                             getNewServer();
@@ -515,7 +657,7 @@ public class Cliente {
                         request.setName(credentials.get(2));
 
                         //Tenta enviar pedido de CREATE_ACCOUNT ao servidor
-                        sendMessage(request, oout);
+                        if (sendMessage(request, oout) == 0) continue;
 
                         request = (Request) oinS.readObject();
                         System.out.println("\n" + request.getMessage() + "\n");
@@ -549,9 +691,10 @@ public class Cliente {
         }
     }
 
-    public static void sendMessage(Request req, ObjectOutputStream oout) throws IOException {
+    public static synchronized int sendMessage(Request req, ObjectOutputStream oout) throws IOException {
         try {
             oout.writeUnshared(req);
+            return 1;
         } catch (SocketException e) {
             System.out.println("\nLigação com o servidor perdida.\nA procurar novo servidor...");
             try {
@@ -560,11 +703,13 @@ public class Cliente {
                 if (!getNewServer()) {
                     System.out.println("\nNão foi possível encontrar um novo servidor/o GRDS fechou.\nA fechar o cliente...\n");
                     Thread.sleep(2000);
-                    return;
+                    System.exit(0);
                 }
+
             } catch (InterruptedException interruptedException) {
                 interruptedException.printStackTrace();
             }
+            return 0;
         }
     }
 
@@ -684,46 +829,38 @@ public class Cliente {
         return false;
     }
 
-//    @Override
-//    public void run() {
-//        ObjectInputStream oin;
-//        String serverWarning;
-//        DatagramPacket packet;
-//        ByteArrayInputStream bin;
-//        Servidor newServer;
-//        while (true) {
-//            try {
-////                oinS = new ObjectInputStream(socket.getInputStream());
-////                serverWarning = (String) oinS.readObject();
-//
-//                if (socket.isClosed()) {
-//                    socket.close();
-//
-//                    packet = new DatagramPacket(ADDR_PORT_REQUEST.getBytes(), ADDR_PORT_REQUEST.length(), AddrGRDS, PortGRDS);
-//                    SocketGRDS.send(packet);
-//
-//                    packet.setData(new byte[MAX_SIZE], 0, MAX_SIZE);
-//                    SocketGRDS.receive(packet);
-//
-//                    bin = new ByteArrayInputStream(packet.getData(), 0, packet.getLength());
-//                    oin = new ObjectInputStream(bin);
-//                    System.out.println("bruh");
-//                    newServer = (Servidor) oin.readObject();
-//                    if (newServer.getListeningPort() != 0){
-//
-//
-//                    System.out.println("server hostname: " + newServer.getServerAddress().toString());
-//                    System.out.println("server port: " + newServer.getListeningPort());
-//                    socket = new Socket(newServer.getServerAddress(), newServer.getListeningPort());
-//
-//                    oinS = new ObjectInputStream(socket.getInputStream());
-//                    oout = new ObjectOutputStream(socket.getOutputStream());
-//                    }
-//                }
-//
-//            } catch (IOException | ClassNotFoundException e) {
-//                e.printStackTrace();
-//            }
-//        }
-//    }
+    @Override
+    public void run() {
+        /*
+        while(true) {
+            try {
+                    Thread.sleep(10000);
+                    request.setMessage("GET_PENDING_CONTACT_REQUESTS");
+                    if (sendMessage(request, oout) == 0) break;
+
+                    synchronized(oinS) {
+                        request = (Request) oinS.readObject();
+                    }
+
+                    if (request.getPendingContactRequests().size() > lastContactReqSize) {
+                        lastContactReqSize = request.getPendingContactRequests().size();
+                        System.out.println("----- Novo pedido de contacto -----");
+                    }
+
+                    request.setMessage("GET_PENDING_GROUP_REQUESTS");
+                    if (sendMessage(request, oout) == 0) break;
+
+                    synchronized(oinS) {
+                        request = (Request) oinS.readObject();
+                    }
+
+                    if (request.getPendingJoinRequests().size() > lastGroupReqSize) {
+                        lastGroupReqSize = request.getPendingJoinRequests().size();
+                        System.out.println("----- Novo pedido de entrada em grupo -----");
+                    }
+            } catch (InterruptedException | IOException | ClassNotFoundException e) {
+                e.printStackTrace();
+            }
+        }*/
+    }
 }

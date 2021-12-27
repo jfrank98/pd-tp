@@ -12,17 +12,37 @@ public class Request implements Serializable {
     private String oldGroupName;
     private String Contact;
     private boolean session = false;
+    private boolean groupOwner = false;
     private String message;
     private boolean serverIsOnline = false;
     private ArrayList<String> listaContactos = new ArrayList<>();
     private ArrayList<String> listaGrupos = new ArrayList<>();
     private ArrayList<String> listaGruposAdmin = new ArrayList<>();
     private ArrayList<String> listaMembros = new ArrayList<>();
+    private ArrayList<String> pendingJoinRequests = new ArrayList<>();
+    private ArrayList<Integer> pendingJoinRequestsGroupId = new ArrayList<>();
+    private ArrayList<String> pendingContactRequests = new ArrayList<>();
+    private ArrayList<Integer> acceptRejectIgnoreRequests = new ArrayList<>();
+
     public static final long serialVersionUID = 1L;
 
     public Request(String s, String s1) {
         username = s;
         password = s1;
+    }
+
+    public void setAcceptRejectIgnoreRequests(Integer i){ acceptRejectIgnoreRequests.add(i); }
+
+    public ArrayList<Integer> getAcceptRejectIgnoreRequests() {
+        return acceptRejectIgnoreRequests;
+    }
+
+    public boolean isGroupOwner() {
+        return groupOwner;
+    }
+
+    public void setGroupOwner(boolean groupOwner) {
+        this.groupOwner = groupOwner;
     }
 
     public void setSession(boolean session) {
@@ -96,6 +116,10 @@ public class Request implements Serializable {
         this.password = password;
     }
 
+    public ArrayList<Integer> getPendingJoinRequestsGroupId() {
+        return pendingJoinRequestsGroupId;
+    }
+
     public void setOldUsername(String oldUsername) { this.oldUsername = oldUsername; }
 
     public void setOldPassword(String oldPassword) {this.oldPassword = oldPassword; }
@@ -128,6 +152,23 @@ public class Request implements Serializable {
 
     public void deleteMemberSuccess(String member) { listaMembros.remove(member); }
 
-    public void createAccount() {
+    public void setPendingJoinRequests(String s){
+        pendingJoinRequests.add(s);
+    }
+
+    public void setPendingContactRequests(String s){
+        pendingContactRequests.add(s);
+    }
+
+    public ArrayList<String> getPendingJoinRequests() {
+        return pendingJoinRequests;
+    }
+
+    public ArrayList<String> getPendingContactRequests() {
+        return pendingContactRequests;
+    }
+
+    public void setPendingJoinRequestsGroupId(int a) {
+        pendingJoinRequestsGroupId.add(a);
     }
 }
