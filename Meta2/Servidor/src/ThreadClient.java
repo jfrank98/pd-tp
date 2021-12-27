@@ -37,11 +37,14 @@ public class ThreadClient extends Thread{
     private int contactID;
     private int groupID;
     private int adminID;
+    private StartServer startServer;
+    private ArrayList<ServerData> serverList;
 
-    public ThreadClient(Socket clientSocket, Statement stmt, Connection conn) {
+    public ThreadClient(Socket clientSocket, Statement stmt, Connection conn, StartServer startServer) {
         this.socket = clientSocket;
         this.stmt = stmt;
         this.conn = conn;
+        this.startServer = startServer;
     }
 
     public void run() {
@@ -58,6 +61,8 @@ public class ThreadClient extends Thread{
         Request req = new Request();
 
         while (true) {
+
+            serverList = startServer.getServerList();
             try {
                 try {
                     //Lê o pedido do cliente

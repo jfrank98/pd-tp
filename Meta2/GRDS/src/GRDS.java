@@ -1,11 +1,6 @@
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.ObjectOutputStream;
+import java.io.*;
 import java.net.*;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.*;
 
 public class GRDS implements Runnable{
 
@@ -14,7 +9,7 @@ public class GRDS implements Runnable{
     private static final String SERVER_GRDS_CHECK = "CHECK_GRDS";
     private static String SERVER_CHECK = "SERVER_ACTIVE";
     private static final String CLIENT_REQUEST = "GET_ADDR_PORT_TCP";
-    private static List<Servidor> servers = Collections.synchronizedList(new ArrayList<>());
+    private static List<ServerData> servers = new ArrayList<>();
     private static int server_index = 0;
 
     public GRDS(){
@@ -29,7 +24,8 @@ public class GRDS implements Runnable{
         ObjectOutputStream oos;
         boolean firstServer = true;
         int id = 1;
-        Servidor empty = new Servidor();
+        ServerData empty = new ServerData();
+        ArrayList<ServerData> serverList;
 
         //Verifica se recebeu os argumentos necessários: porto de escuta
         if(args.length != 1){
@@ -61,7 +57,7 @@ public class GRDS implements Runnable{
 
                 if (response.equals(SERVER_REQUEST)) {
                     System.out.println("\nMensagem do servidor com endereço IP " + packet.getAddress() + " e porto de escuta " + packet.getPort());
-                    Servidor newServer = new Servidor(packet.getAddress(), packet.getPort());
+                    ServerData newServer = new ServerData(packet.getAddress(), packet.getPort());
                     newServer.setTimeSinceLastMsg(System.currentTimeMillis()/1000);
                     newServer.setId(id);
                     newServer.setOnline(true);
@@ -79,20 +75,33 @@ public class GRDS implements Runnable{
                     socket.send(packet);
                 }
                 else if (response.equals(SERVER_CHECK)) {
+                    byte [] data;
+
                     synchronized (servers) {
-                        for (Servidor s : servers) {
+                        for (ServerData s : servers) {
                             if (packet.getAddress().equals(s.getServerAddress()) && packet.getPort() == s.getListeningPort()) {
                                 s.setPeriods(0);
                                 s.setTimeSinceLastMsg(System.currentTimeMillis() / 1000);
                                 s.setOnline(true);
                             }
                         }
+                        serverList = new ArrayList<>(servers);
                     }
-                    packet.setData(SERVER_REQUEST.getBytes(), 0, SERVER_REQUEST.length());
+                    ArrayList<Object> array = new ArrayList<>();
+                    array.add(serverList);
+                    data = serialize(array);
+                    packet.setData(data, 0, data.length);
                     socket.send(packet);
                 }
                 else if (response.equals(SERVER_GRDS_CHECK)) {
-                    packet.setData(SERVER_REQUEST.getBytes(), 0, SERVER_REQUEST.length());
+                    byte [] data;
+                    synchronized (servers) {
+                        serverList = new ArrayList<>(servers);
+                    }
+                    ArrayList<Object> array = new ArrayList<>();
+                    array.add(serverList);
+                    data = serialize(array);
+                    packet.setData(data, 0, data.length);
                     socket.send(packet);
                 }
                 else if (response.equals(CLIENT_REQUEST)){
@@ -155,26 +164,63 @@ public class GRDS implements Runnable{
         }
     }
 
+    public static byte[] serialize(Object obj) throws IOException {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        ObjectOutputStream os = new ObjectOutputStream(out);
+        os.writeObject(obj);
+        return out.toByteArray();
+    }
+
+    public static Object deserialize(byte[] data) throws IOException,   ClassNotFoundException {
+        ByteArrayInputStream in = new ByteArrayInputStream(data);
+        ObjectInputStream is = new ObjectInputStream(in);
+        return is.readObject();
+    }
+
     public void run() {
         while (true) {
-            if (servers.size() == 0) continue;
-            for (Servidor s : servers) {
-                double seconds = 2;
-                //System.out.println("Time since last msg: " + ((System.currentTimeMillis()/1000) - s.getTimeSinceLastMsg()));
+            synchronized (servers) {
+                if (servers.size() == 0) continue;
 
-                if ((System.currentTimeMillis() / 1000) - s.getTimeSinceLastMsg() >= seconds) {
-                    System.out.println("\nO servidor com id " + s.getId() + " não respondeu " + (s.getPeriods() + 1) + " vezes.");
-                    s.setPeriods(s.getPeriods() + 1);
-                    s.setTimeSinceLastMsg(System.currentTimeMillis() / 1000);
-                    s.setOnline(false);
+                for (final Iterator it = servers.listIterator(); it.hasNext(); ) {
 
-                    if (s.getPeriods() == 3) {
-                        System.out.println("\nO servidor com id " + s.getId() + " foi removido.");
-                        servers.remove(s);
-                        server_index--;
-                        if (servers.size() == 0) break;
+                    double seconds = 2;
+                    //System.out.println("Time since last msg: " + ((System.currentTimeMillis()/1000) - s.getTimeSinceLastMsg()));
+                    ServerData s = (ServerData) it.next();
+
+                    if ((System.currentTimeMillis() / 1000) - s.getTimeSinceLastMsg() >= seconds) {
+                        System.out.println("\nO servidor com id " + s.getId() + " não respondeu " + (s.getPeriods() + 1) + " vezes.");
+                        s.setPeriods(s.getPeriods() + 1);
+                        s.setTimeSinceLastMsg(System.currentTimeMillis() / 1000);
+                        s.setOnline(false);
+
+                        if (s.getPeriods() == 3) {
+                            System.out.println("\nO servidor com id " + s.getId() + " foi removido.");
+                            it.remove();
+                            server_index--;
+                            if (!it.hasNext()) break;
+                        }
                     }
                 }
+
+                /*for (ServerData s : servers) {
+                    double seconds = 2;
+                    //System.out.println("Time since last msg: " + ((System.currentTimeMillis()/1000) - s.getTimeSinceLastMsg()));
+
+                    if ((System.currentTimeMillis() / 1000) - s.getTimeSinceLastMsg() >= seconds) {
+                        System.out.println("\nO servidor com id " + s.getId() + " não respondeu " + (s.getPeriods() + 1) + " vezes.");
+                        s.setPeriods(s.getPeriods() + 1);
+                        s.setTimeSinceLastMsg(System.currentTimeMillis() / 1000);
+                        s.setOnline(false);
+
+                        if (s.getPeriods() == 3) {
+                            System.out.println("\nO servidor com id " + s.getId() + " foi removido.");
+                            servers.remove(s);
+                            server_index--;
+                            if (servers.size() == 0) break;
+                        }
+                    }
+                }*/
             }
         }
     }

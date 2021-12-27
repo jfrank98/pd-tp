@@ -21,7 +21,7 @@ public class Cliente implements Runnable {
 
     public static void main(String args[]) {
         DatagramPacket packet;
-        Servidor server;
+        ServerData server;
         ByteArrayInputStream bin;
         boolean connected = false;
         String ans;
@@ -54,7 +54,7 @@ public class Cliente implements Runnable {
             oin = new ObjectInputStream(bin);
 
             //Lê o objeto e guarda os dados
-            server = (Servidor) oin.readObject();
+            server = (ServerData) oin.readObject();
 
             System.out.println("\nEndereço IP: " + server.getServerAddress().toString());
             System.out.println("Porto de escuta: " + server.getListeningPort());
@@ -747,7 +747,7 @@ public class Cliente implements Runnable {
         ObjectInputStream oin;
         DatagramPacket packet;
         ByteArrayInputStream bin;
-        Servidor newServer;
+        ServerData newServer;
         int attempt = 0;
 
         try {
@@ -778,7 +778,7 @@ public class Cliente implements Runnable {
                 bin = new ByteArrayInputStream(packet.getData(), 0, packet.getLength());
                 oin = new ObjectInputStream(bin);
 
-                newServer = (Servidor) oin.readObject();
+                newServer = (ServerData) oin.readObject();
 
                 if (newServer.getListeningPort() != 0) {
                     System.out.println("\nNovo endereço IP: " + newServer.getServerAddress().toString());
