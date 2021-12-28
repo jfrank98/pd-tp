@@ -138,6 +138,9 @@ public class ThreadClient extends Thread{
                     }
                     else if (req.getMessage().equalsIgnoreCase("JOIN_GROUP")){
                         req.setMessage(joinGroup(req.getGroupName(), req.getID()));
+
+                        if(req.getMessage().equalsIgnoreCase("SUCCESS"))
+                            req.setMessage("SUCCESS - Pedido de adesão enviado.");
                     }
                     else if (req.getMessage().equalsIgnoreCase("CREATE_GROUP")){
                         req.setMessage(createGroup(req.getGroupName(), req.getID()));
@@ -189,6 +192,7 @@ public class ThreadClient extends Thread{
                     }
                     else if (req.getMessage().equalsIgnoreCase("GET_PENDING_CONTACT_REQUESTS")) {
                         req.setMessage(checkNewContactRequests(req.getID()));
+
                         if (req.getMessage().equalsIgnoreCase("SUCCESS")) {
                             if (!pendingContactRequests.isEmpty()) {
                                 for (String s : pendingContactRequests)
@@ -196,29 +200,29 @@ public class ThreadClient extends Thread{
                             }
                         }
                     }
+                    else if (req.getMessage().equalsIgnoreCase("ACCEPT_CONTACT_REQUEST")) {
+                        req.setMessage(acceptContactRequest(req.getID(), req.getContact()));
+                    }
+                    else if (req.getMessage().equalsIgnoreCase("REJECT_CONTACT_REQUEST")) {
+                        req.setMessage(rejectContactRequest(req.getID(), req.getContact()));
+                    }
                     else if (req.getMessage().equalsIgnoreCase("ACCEPT_ALL_CONTACT_REQUESTS")) {
                         req.setMessage(acceptAllContactRequests(req.getID()));
                     }
                     else if (req.getMessage().equalsIgnoreCase("REJECT_ALL_CONTACT_REQUESTS")) {
                         req.setMessage(rejectAllContactRequests(req.getID()));
                     }
-                    else if (req.getMessage().equalsIgnoreCase("IGNORE_ALL_CONTACT_REQUESTS")) {
-                        req.setMessage("SUCCESS");
+                    else if (req.getMessage().equalsIgnoreCase("ACCEPT_GROUP_REQUEST")) {
+                        req.setMessage(acceptGroupRequest(req.getID(), req.getContact()));
                     }
-                    else if (req.getMessage().equalsIgnoreCase("ACCEPT_CONTACT_REQUESTS")) {
-                        req.setMessage(manageContactRequests(req.getID(), req.getAcceptRejectIgnoreRequests(), req.getPendingContactRequests()));
-                    }
-                    else if (req.getMessage().equalsIgnoreCase("ACCEPT_GROUP_REQUESTS")) {
-                        req.setMessage(manageGroupRequests(req.getID(), req.getAcceptRejectIgnoreRequests(), req.getPendingJoinRequests(), req.getPendingJoinRequestsGroupId()));
+                    else if (req.getMessage().equalsIgnoreCase("REJECT_GROUP_REQUEST")) {
+                        req.setMessage(rejectGroupRequest(req.getID(), req.getContact()));
                     }
                     else if (req.getMessage().equalsIgnoreCase("ACCEPT_ALL_GROUP_REQUESTS")){
                         req.setMessage(acceptAllGroupRequests(req.getID()));
                     }
                     else if (req.getMessage().equalsIgnoreCase("REJECT_ALL_GROUP_REQUESTS")) {
                         req.setMessage(rejectAllGroupRequests(req.getID()));
-                    }
-                    else if (req.getMessage().equalsIgnoreCase("IGNORE_ALL_GROUP_REQUESTS")) {
-                        req.setMessage("SUCCESS");
                     }
                     else if (req.getMessage().equalsIgnoreCase("GET_MESSAGES_FROM")){
                         req.getHistoricoMensagens().clear();
@@ -247,6 +251,7 @@ public class ThreadClient extends Thread{
                     else if (req.getMessage().equalsIgnoreCase("SEND_MESSAGE")) {
                         req.setMessage(createMessage(req.getID(), req.getMessageContent(), getIDFromDB(req.getContact()), req.isFile()));
                     }
+
                     //Envia resposta ao cliente
                     out.writeUnshared(req);
                 }
@@ -634,7 +639,7 @@ public class ThreadClient extends Thread{
             ps.setBoolean(3, accepted);
 
             ps.executeUpdate();
-            ans = "SUCCESS";
+            ans = "SUCCESS - Pedido de contacto enviado.";
 
         }catch(SQLException e){
             System.out.println("\n" + e);
@@ -775,6 +780,7 @@ public class ThreadClient extends Thread{
 
     private String checkNewContactRequests(int id) {
         String ans = "FAILURE";
+        pendingContactRequests.clear();
 
         try {
             ResultSet rs = stmt.executeQuery(COUNT_USER_CONTACTS_QUERY);
@@ -787,27 +793,23 @@ public class ThreadClient extends Thread{
                 while (rs2.next()) {
                     if (rs2.getInt(2) == id) {
                         if (rs2.getBoolean(3) == false) {
-                            System.out.println(getUsernameByID(rs2.getInt(1)));
+                            //System.out.println(getUsernameByID(rs2.getInt(1)));
                             pendingContactRequests.add(getUsernameByID(rs2.getInt(1)));
                         }
-                        if (rs2.getInt(1) == id) {
-                            if (!rs2.getBoolean(3)) {
-                                System.out.println(getUsernameByID(rs2.getInt(2)));
-                                pendingContactRequests.add(getUsernameByID(rs2.getInt(2)));
-                                ans = "SUCCESS";
-                            }
-                        }
+                        ans = "SUCCESS";
                     }
                 }
             }
-        } catch (SQLException throwables) {
-            throwables.printStackTrace();
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
         return ans;
     }
 
     private String checkNewGroupRequests(int id) {
         String ans = "FAILURE";
+        pendingJoinRequests.clear();
+        pendingJoinRequestsGroupId.clear();
 
         try {
 
@@ -831,6 +833,65 @@ public class ThreadClient extends Thread{
         } catch (SQLException throwables) {
             throwables.printStackTrace();
         }
+        return ans;
+    }
+
+    public String acceptContactRequest(int id, String c){
+        String ans = "FAILURE";
+        boolean encontrou = false;
+
+        try {
+            contactID = getIDFromDB(c);
+            if(contactID == 0){
+                ans = "FAILURE - Não tem nenhum pedido deste contacto.";
+                return ans;
+            }
+
+            PreparedStatement ps = conn.prepareStatement("UPDATE UserContact SET accepted = ? WHERE user_id = ? AND contact_id = ?");
+            ps.setBoolean(1, true);
+            ps.setInt(2, contactID);
+            ps.setInt(3, id);
+
+            ps.executeUpdate();
+
+            PreparedStatement ps2 = conn.prepareStatement("INSERT INTO Usercontact (user_id, contact_id, accepted) values(?, ? , true)");
+            ps2.setInt(1, id);
+            ps2.setInt(2, getIDFromDB(c));
+
+            ps2.executeUpdate();
+
+            ans = "SUCCESS";
+
+        } catch (SQLException throwables) {
+            throwables.printStackTrace();
+        }
+
+        return ans;
+    }
+
+    public String rejectContactRequest(int id, String c){
+        String ans = "FAILURE";
+
+        try {
+            contactID = getIDFromDB(c);
+            if(contactID == 0){
+                ans = "FAILURE - Não tem nenhum pedido deste contacto.";
+                return ans;
+            }
+
+            PreparedStatement ps = conn.prepareStatement("DELETE FROM UserContact WHERE user_id = ? AND contact_id = ? AND accepted = ?");
+            ps.setInt(1, contactID);
+            ps.setInt(2, id);
+            ps.setBoolean(3, false);
+
+            ps.executeUpdate();
+
+            ans = "SUCCESS";
+
+        } catch (SQLException throwables) {
+            throwables.printStackTrace();
+        }
+
         return ans;
     }
 
@@ -864,7 +925,7 @@ public class ThreadClient extends Thread{
         String ans = "FAILURE";
 
         try {
-            PreparedStatement ps = conn.prepareStatement("DELETE FROM UserContact WHERE accepted = ? AND user_id = ?");
+            PreparedStatement ps = conn.prepareStatement("DELETE FROM UserContact WHERE accepted = ? AND contact_id = ?");
             ps.setBoolean(1, false);
             ps.setInt(2, id);
 
@@ -899,6 +960,63 @@ public class ThreadClient extends Thread{
                     ps2.executeUpdate();
                 }
             }
+        } catch (SQLException throwables) {
+            throwables.printStackTrace();
+        }
+
+        return ans;
+    }
+
+    public String acceptGroupRequest(int id, String c){
+        String ans = "FAILURE";
+        boolean encontrou = false;
+
+        try {
+            contactID = getIDFromDB(c);
+            if(contactID == 0){
+                ans = "FAILURE - Não tem nenhum pedido deste contacto.";
+                return ans;
+            }
+
+            PreparedStatement ps = conn.prepareStatement("UPDATE Useringroup SET accepted = ? WHERE group_user_id = ? AND group_admin = ?");
+            ps.setBoolean(1, true);
+            ps.setInt(2, contactID);
+            ps.setInt(3, id);
+
+            ps.executeUpdate();
+
+            //afeta todos os pedidos de adesão deste user em grupos em que o admin é o mesmo
+
+            ans = "SUCCESS";
+
+        } catch (SQLException throwables) {
+            throwables.printStackTrace();
+        }
+
+        return ans;
+    }
+
+    public String rejectGroupRequest(int id, String c){
+        String ans = "FAILURE";
+
+        try {
+            contactID = getIDFromDB(c);
+            if(contactID == 0){
+                ans = "FAILURE - Não tem nenhum pedido deste contacto.";
+                return ans;
+            }
+
+            PreparedStatement ps = conn.prepareStatement("DELETE FROM Useringroup WHERE group_user_id = ? AND group_admin = ? AND accepted = ?");
+            ps.setInt(1, contactID);
+            ps.setInt(2, id);
+            ps.setBoolean(3, false);
+
+            ps.executeUpdate();
+
+            //afeta todos os pedidos de adesão deste user em grupos em que o admin é o mesmo
+
+            ans = "SUCCESS";
+
         } catch (SQLException throwables) {
             throwables.printStackTrace();
         }
