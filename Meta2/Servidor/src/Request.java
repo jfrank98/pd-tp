@@ -23,6 +23,10 @@ public class Request implements Serializable {
     private ArrayList<Integer> pendingJoinRequestsGroupId = new ArrayList<>();
     private ArrayList<String> pendingContactRequests = new ArrayList<>();
     private ArrayList<Integer> acceptRejectIgnoreRequests = new ArrayList<>();
+    private ArrayList<String> historicoMensagens = new ArrayList<>();
+    private ArrayList<String> historicoGrupo = new ArrayList<>();
+    private String messageContent;
+    private boolean file;
 
     public static final long serialVersionUID = 1L;
 
@@ -68,6 +72,14 @@ public class Request implements Serializable {
         return username;
     }
 
+    public String getMessageContent() {
+        return messageContent;
+    }
+
+    public void setMessageContent(String messageContent) {
+        this.messageContent = messageContent;
+    }
+
     public String getName() {
         return name;
     }
@@ -97,6 +109,10 @@ public class Request implements Serializable {
     public ArrayList<String> getListaGruposAdmin() { return  listaGruposAdmin; }
 
     public ArrayList<String> getListaMembros() { return listaMembros; }
+
+    public ArrayList<String> getHistoricoGrupo() { return historicoGrupo; }
+
+    public ArrayList<String> getHistoricoMensagens() { return historicoMensagens; }
 
     public void setID(int id) { this.id = id; }
 
@@ -152,6 +168,10 @@ public class Request implements Serializable {
 
     public void deleteMemberSuccess(String member) { listaMembros.remove(member); }
 
+    public void addMessageSuccess(String message) { historicoMensagens.add(message); }
+
+    public void addGroupHistorySuccess(String message) { historicoGrupo.add(message); }
+
     public void setPendingJoinRequests(String s){
         pendingJoinRequests.add(s);
     }
@@ -170,5 +190,13 @@ public class Request implements Serializable {
 
     public void setPendingJoinRequestsGroupId(int a) {
         pendingJoinRequestsGroupId.add(a);
+    }
+
+    public boolean isFile() {
+        return file;
+    }
+
+    public void setFile(boolean file) {
+        this.file = file;
     }
 }
