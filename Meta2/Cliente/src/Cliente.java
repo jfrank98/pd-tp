@@ -1,4 +1,5 @@
 import java.io.*;
+import java.io.File;
 import java.net.*;
 import java.util.ArrayList;
 import java.util.Scanner;
@@ -18,7 +19,8 @@ public class Cliente implements Runnable{
     private static boolean newServer = false;
     private int lastContactReqSize = 0;
     private int lastGroupReqSize = 0;
-
+    private static boolean inChat = false;
+    private static int lastMessageHistorySize = 0;
     public static void main(String args[]) {
         DatagramPacket packet;
         ServerData server;
@@ -140,6 +142,7 @@ public class Cliente implements Runnable{
                             System.out.println("2 - Adicionar contacto");
                             System.out.println("3 - Eliminar contacto");
                             System.out.println("4 - Pedidos de contacto pendentes");
+                            System.out.println("5 - Entrar em chat de mensagens privadas");
                             System.out.println("0 - Voltar");
 
                             System.out.print("\nOpção: ");
@@ -262,6 +265,96 @@ public class Cliente implements Runnable{
                                     request = (Request) oinS.readObject();
                                     System.out.println("\n" + request.getMessage());
                                 }
+                            }
+                            else if (option2 == 5) {
+
+                                request.setMessage("LIST_CONTACTS");
+
+                                if (sendMessage(request, oout) == 0) continue;
+
+                                request = (Request) oinS.readObject();
+
+                                if (request.getListaContactos().size() == 0) {
+                                    System.out.println("Não tem contactos na sua lista.\n");
+                                }
+                                else {
+                                    System.out.println("Escolha em que chat entrar: ");
+                                    int i = 1;
+                                    for (String contacto : request.getListaContactos()) {
+                                        System.out.println(i + " - " + contacto);
+                                        i++;
+                                    }
+                                    while (!sc.hasNextInt()) {
+                                        System.out.println("\nOpcao invalida");
+                                        sc.nextLine();
+                                    }
+                                    int opt = sc.nextInt();
+                                    request.setContact(request.getListaContactos().get(opt-1));
+                                    request.setMessage("GET_MESSAGES_FROM");
+                                    if (sendMessage(request, oout) == 0) continue;
+
+                                    request = (Request) oinS.readObject();
+
+                                    inChat = true;
+                                    boolean enteredChat = true;
+                                    String fileName = null;
+                                    do {
+                                        if (enteredChat) {
+                                            lastMessageHistorySize = request.getHistoricoMensagens().size();
+                                            for (String message : request.getHistoricoMensagens()) {
+                                                System.out.println(message + "\n");
+                                            }
+                                            enteredChat = false;
+                                            Runnable r = new Cliente();
+                                            new Thread(r).start();
+                                        }
+                                        Thread.sleep(500);
+                                        System.out.print("Mensagem (!sendfile/!getfile para enviar/receber ficheiro): ");
+                                        while(!sc.hasNextLine());
+                                        String msg = sc.nextLine();
+                                        if (msg.equalsIgnoreCase("!sendfile")){
+                                            request.setSendFile(true);
+                                            System.out.print("Nome do ficheiro a enviar: ");
+                                            while(!sc.hasNextLine());
+                                            fileName = sc.nextLine();
+
+                                            request.getF().setName(fileName);
+                                            //request.setMessageContent("--- Ficheiro \"" + fileName + "\" enviado por " + request.getUsername() + " ---");
+                                        }
+                                        else if (msg.equalsIgnoreCase("!getfile")) {
+                                            request.setReceiveFile(true);
+                                            System.out.print("Nome do ficheiro a receber: ");
+                                            while(!sc.hasNextLine());
+                                            fileName = sc.nextLine();
+                                            Runnable r = new ReceiveFile(fileName, socket);
+                                            new Thread(r).start();
+                                        }
+                                        else if (msg.equalsIgnoreCase("!sair")){
+                                            inChat = false;
+                                            break;
+                                        }
+                                        else {
+                                            request.setMessageContent(sc.nextLine());
+                                            request.setSendFile(false);
+                                            request.setReceiveFile(false);
+                                        }
+                                        request.setMessage("SEND_MESSAGE");
+
+                                        if (sendMessage(request, oout) == 0) continue;
+
+                                        request = (Request) oinS.readObject();
+                                        System.out.println(request.getMessage());
+
+                                        if (request.isSendFile()){
+                                            Socket socket = new Socket(request.getFileSocketAddress(), request.getFileSocketPort());
+
+                                            Runnable r = new SendFile(fileName, socket);
+                                            new Thread(r).start();
+                                        }
+
+                                    }while(true);
+                                }
+
                             }
                             else if(option2 != 0){
                                 //Opção inválida
@@ -641,8 +734,6 @@ public class Cliente implements Runnable{
 
                         if (request.getMessage().equals("SUCCESS")) {
                             request.setSession(true);
-                            Runnable r = new Cliente();
-                            new Thread(r).start();
                         }
                         else if (request.getMessage().equals("SERVER_OFF")){
                             getNewServer();
@@ -688,8 +779,12 @@ public class Cliente implements Runnable{
 
         } catch (IOException | ClassNotFoundException e) {
             e.printStackTrace();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
         }
     }
+
+
 
     public static synchronized int sendMessage(Request req, ObjectOutputStream oout) throws IOException {
         try {
@@ -831,6 +926,20 @@ public class Cliente implements Runnable{
 
     @Override
     public void run() {
+        while (inChat) {
+            int historySize = request.getHistoricoMensagens().size();
+            final ArrayList<String> message = request.getHistoricoMensagens();
+            if (historySize > lastMessageHistorySize){
+                int index = historySize - lastMessageHistorySize;
+                for (int i = index; i < historySize; i++) {
+                    System.out.println(message.get(i) + "\n");
+                }
+                lastMessageHistorySize = historySize;
+            }
+        }
+        while (!inChat) {
+
+        }
         /*
         while(true) {
             try {

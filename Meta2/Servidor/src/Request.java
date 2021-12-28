@@ -1,8 +1,10 @@
 import java.io.Serializable;
+import java.net.InetAddress;
+import java.net.Socket;
 import java.util.ArrayList;
 
 public class Request implements Serializable {
-    private int id;
+    private int id = -1;
     private String username;
     private String password;
     private String name;
@@ -23,14 +25,44 @@ public class Request implements Serializable {
     private ArrayList<Integer> pendingJoinRequestsGroupId = new ArrayList<>();
     private ArrayList<String> pendingContactRequests = new ArrayList<>();
     private ArrayList<Integer> acceptRejectIgnoreRequests = new ArrayList<>();
+    private ArrayList<String> historicoMensagens = new ArrayList<>();
+    private ArrayList<String> historicoGrupo = new ArrayList<>();
     private String messageContent;
-    private boolean file;
+    private File f = new File();
+    private InetAddress fileSocketAddress;
+    private int fileSocketPort;
+    private boolean receiveFile;
+    private boolean sendFile;
 
     public static final long serialVersionUID = 1L;
+
+    public InetAddress getFileSocketAddress() {
+        return fileSocketAddress;
+    }
+
+    public void setFileSocketAddress(InetAddress fileSocketAddress) {
+        this.fileSocketAddress = fileSocketAddress;
+    }
+
+    public int getFileSocketPort() {
+        return fileSocketPort;
+    }
+
+    public void setFileSocketPort(int fileSocketPort) {
+        this.fileSocketPort = fileSocketPort;
+    }
 
     public Request(String s, String s1) {
         username = s;
         password = s1;
+    }
+
+    public File getF() {
+        return f;
+    }
+
+    public void setF(File f) {
+        this.f = f;
     }
 
     public void setAcceptRejectIgnoreRequests(Integer i){ acceptRejectIgnoreRequests.add(i); }
@@ -108,6 +140,10 @@ public class Request implements Serializable {
 
     public ArrayList<String> getListaMembros() { return listaMembros; }
 
+    public ArrayList<String> getHistoricoGrupo() { return historicoGrupo; }
+
+    public ArrayList<String> getHistoricoMensagens() { return historicoMensagens; }
+
     public void setID(int id) { this.id = id; }
 
     public void setName(String name) {
@@ -162,6 +198,10 @@ public class Request implements Serializable {
 
     public void deleteMemberSuccess(String member) { listaMembros.remove(member); }
 
+    public void addMessageSuccess(String message) { historicoMensagens.add(message); }
+
+    public void addGroupHistorySuccess(String message) { historicoGrupo.add(message); }
+
     public void setPendingJoinRequests(String s){
         pendingJoinRequests.add(s);
     }
@@ -182,11 +222,19 @@ public class Request implements Serializable {
         pendingJoinRequestsGroupId.add(a);
     }
 
-    public boolean isFile() {
-        return file;
+    public boolean isSendFile() {
+        return sendFile;
     }
 
-    public void setFile(boolean file) {
-        this.file = file;
+    public void setSendFile(boolean file) {
+        this.sendFile = file;
+    }
+
+    public boolean isReceiveFile() {
+        return receiveFile;
+    }
+
+    public void setReceiveFile(boolean file) {
+        this.receiveFile = file;
     }
 }

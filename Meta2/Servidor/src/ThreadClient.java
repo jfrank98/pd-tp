@@ -1,21 +1,14 @@
-import javax.swing.*;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
-import java.rmi.RemoteException;
 import java.sql.*;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Calendar;
-import java.util.Iterator;
 
 public class ThreadClient extends Thread{
 
@@ -40,6 +33,7 @@ public class ThreadClient extends Thread{
     private ArrayList<String> pendingContactRequests = new ArrayList<>();
     private ArrayList<Integer> pendingJoinRequestsGroupId = new ArrayList<>();
     private ArrayList<String> messageHistory = new ArrayList<>();
+    private ArrayList<String> groupHistory = new ArrayList<>();
     private int contactID;
     private int groupID;
     private int adminID;
@@ -64,7 +58,7 @@ public class ThreadClient extends Thread{
             return;
         }
 
-        Request req;
+        Request req = new Request();
 
         while (true) {
             serverList = startServer.getServerList();
@@ -75,11 +69,21 @@ public class ThreadClient extends Thread{
                     req = (Request) oin.readObject();
                 }catch(EOFException | SocketException e) {
                     System.out.println("\nO cliente da thread com ID " + Thread.currentThread().getId() + " saiu.");
+                    if (req.getID() != -1) {
+                        for (ServerData serverData : serverList) {
+                            if (serverData.getListeningPort() == socket.getLocalPort()) {
+                                serverData.removeClient(req.getUsername());
+                            }
+                        }
+                        logout(req.getID());
+                    }
                     socket.close();
                     return;
                 }
 
                 if ((req == null) || req.getMessage().equalsIgnoreCase("QUIT") ) {
+                    if(req.getID() != -1)
+                        logout(req.getID());
                     socket.close();
                     return;
                 } else {
@@ -97,10 +101,14 @@ public class ThreadClient extends Thread{
                     }
                     else if (req.getMessage().equalsIgnoreCase("LOGIN")) {
                         req.setMessage(loginUser(req.getUsername(), req.getPassword()));
-
                         if(req.getMessage().equalsIgnoreCase("SUCCESS")){
                             req.setID(getIDFromDB(req.getUsername()));
                             req.setName(getNameFromDB(req.getUsername()));
+                            for (ServerData serverData : serverList){
+                                if (serverData.getListeningPort() == socket.getLocalPort()){
+                                    serverData.setClients(req.getUsername());
+                                }
+                            }
                         }
                     }
                     else if (req.getMessage().equalsIgnoreCase("CHANGE_USERNAME")){
@@ -219,11 +227,40 @@ public class ThreadClient extends Thread{
                     else if (req.getMessage().equalsIgnoreCase("IGNORE_ALL_GROUP_REQUESTS")) {
                         req.setMessage("SUCCESS");
                     }
-                    else if (req.getMessage().equalsIgnoreCase("JOIN_CHAT")){
+                    else if (req.getMessage().equalsIgnoreCase("GET_MESSAGES_FROM")){
+                        req.getHistoricoMensagens().clear();
+                        contactID = getIDFromDB(req.getContact());
+                        req.setMessage(getMessagesFrom(req.getID(), contactID));
 
+                        if(messageHistory.size() > 0){
+                            for(String m : messageHistory){
+                                req.addMessageSuccess(m);
+                            }
+                        }
+                    }
+                    else if (req.getMessage().equalsIgnoreCase("GET_GROUP_MESSAGES")){
+                        req.getHistoricoGrupo().clear();
+
+                        //descobrir o id do grupo
+                        //groupID = ;
+                        req.setMessage(getGroupMessages(groupID));
+
+                        if(groupHistory.size() > 0){
+                            for(String m: groupHistory){
+                                req.addGroupHistorySuccess(m);
+                            }
+                        }
                     }
                     else if (req.getMessage().equalsIgnoreCase("SEND_MESSAGE")) {
-                        req.setMessage(createMessage(req.getID(), req.getMessageContent(), getIDFromDB(req.getContact()), req.isFile()));
+                        if (req.isSendFile()){
+                            ServerSocket fileSocket = new ServerSocket(0);
+                            req.setFileSocketPort(fileSocket.getLocalPort());
+                            req.setFileSocketAddress(fileSocket.getInetAddress());
+                            System.out.println("Receber ficheiro ");
+                            Runnable r = new ReceiveFile(req.getF().getName(), fileSocket);
+                            new Thread(r).start();
+                        }
+                        req.setMessage(createMessage(req.getID(), req.getMessageContent(), getIDFromDB(req.getContact()), req.isSendFile(), req.getF()));
                     }
                     //Envia resposta ao cliente
                     out.writeUnshared(req);
@@ -235,28 +272,47 @@ public class ThreadClient extends Thread{
         }
     }
 
-    public String createMessage(int id, String message, int cid, boolean isFile) {
+    public String createMessage(int id, String message, int cid, boolean isFile, File f) {
         String ans = "FAILURE";
 
         try {
-            PreparedStatement ps = conn.prepareStatement("INSERT INTO Message (content, timestamp, file, group_id, group_admin, User_user_id) VALUES (?, ?, ?, ?, ?, ?);");
-            ps.setString(1, message);
 
-            SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
+            PreparedStatement ps1 = conn.prepareStatement("SELECT * FROM UserContact WHERE user_id = ? AND contact_id = ?");
+            ps1.setInt(1, id);
+            ps1.setInt(2, cid);
+            ps1.executeQuery();
 
-            Date date = (Date) formatter.parse(Calendar.getInstance().getTime().toString());
-            ps.setDate(2, date);
-            ps.setBoolean(3, isFile);
-            ps.setInt(4, -1);
-            ps.setInt(5, -1);
-            ps.setInt(6, id);
+            ResultSet rs = ps1.executeQuery();
+            rs.next();
+
+            if(!rs.getBoolean(3)){
+                ans = "FAILURE - Este contacto ainda não aceitou o seu pedido.";
+                return ans;
+            }
+
+            PreparedStatement ps = conn.prepareStatement("INSERT INTO Message (content, timestamp, User_user_id) VALUES (?, ?, ?);", Statement.RETURN_GENERATED_KEYS);
+            ps.setString(1, getUsernameByID(id) + ": " + message);
+
+            Timestamp ts = Timestamp.from(Instant.now());
+            ps.setTimestamp(2, ts);
+            ps.setInt(3, id);
+
 
             ps.executeUpdate();
 
-            ResultSet rs = ps.getGeneratedKeys();
+            ResultSet rs2 = ps.getGeneratedKeys();
             int mid = 0;
-            if (rs.next())
-                mid = rs.getInt(1);
+            if (rs2.next()) {
+                mid = rs2.getInt(1);
+                f.setUniqueName(f.getName() + "_" + mid);
+            }
+
+            if (isFile) {
+                PreparedStatement ps2 = conn.prepareStatement("INSERT INTO File (file_name, Message_message_id) VALUES (?, ?)");
+                ps2.setString(1, f.getUniqueName());
+                ps2.setInt(2, mid);
+                ps2.executeUpdate();
+            }
 
             PreparedStatement ps2 = conn.prepareStatement("INSERT INTO MessageRecipient (recipient_id, message_id, sender_id) VALUES (?, ?, ?);");
             ps2.setInt(1, cid);
@@ -266,8 +322,31 @@ public class ThreadClient extends Thread{
             ps2.executeUpdate();
 
             ans = "SUCCESS";
-        } catch (SQLException | ParseException throwables) {
+        } catch (SQLException throwables) {
             throwables.printStackTrace();
+        }
+
+        return ans;
+    }
+
+    private String getGroupMessages(int gID){
+        String ans = "FAILURE";
+        groupHistory.clear();
+
+        try {
+            PreparedStatement ps = conn.prepareStatement("SELECT * FROM Message WHERE group_id = ?");
+            ps.setInt(1, gID);
+
+            ResultSet rs = ps.executeQuery();
+
+            while (rs.next()){
+                groupHistory.add(rs.getString(2));
+            }
+
+            ans = "SUCCESS";
+
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
 
         return ans;
@@ -279,14 +358,32 @@ public class ThreadClient extends Thread{
             PreparedStatement ps = conn.prepareStatement("SELECT * FROM MessageRecipient WHERE recipient_id = ? AND sender_id = ?;");
             ps.setInt(1, id);
             ps.setInt(2, cid);
-            ResultSet rs = ps.executeQuery();
 
-            PreparedStatement ps2 = conn.prepareStatement("SELECT * FROM Message WHERE message_id = ?");
-            ResultSet rs2;
-            while(rs.next()) {
-                ps2.setInt(1, rs.getInt(2));
-                rs2 = ps2.executeQuery();
-                messageHistory.add(rs2.getString(2));
+            PreparedStatement ps1 = conn.prepareStatement("SELECT * FROM MessageRecipient WHERE recipient_id = ? AND sender_id = ?;");
+            ps1.setInt(1, cid);
+            ps1.setInt(2, id);
+
+            ResultSet receivedMessages = ps.executeQuery();
+            ResultSet sentMessages = ps1.executeQuery();
+
+            PreparedStatement ps2 = conn.prepareStatement("SELECT * FROM Message ORDER BY timestamp");
+
+            ArrayList<Message> everyMessage = new ArrayList<>();
+
+            while(receivedMessages.next()){
+                everyMessage.add(new Message(receivedMessages.getInt(3)));
+            }
+
+            while(sentMessages.next()){
+                everyMessage.add(new Message(sentMessages.getInt(3)));
+            }
+
+            ResultSet rs2 = ps2.executeQuery();
+            while (rs2.next()) {
+                for(Message m : everyMessage) {
+                    if (m.getId() == rs2.getInt(1))
+                        messageHistory.add(" (" + rs2.getTimestamp(3) + ") " + rs2.getString(2));
+                }
             }
             ans = "SUCCESS";
         } catch (SQLException throwables) {
@@ -299,10 +396,11 @@ public class ThreadClient extends Thread{
         String ans = null;
 
         try {
-            PreparedStatement ps = conn.prepareStatement("INSERT INTO User (password, username, name) VALUES (?, ?, ?)");
+            PreparedStatement ps = conn.prepareStatement("INSERT INTO User (password, username, name, session) VALUES (?, ?, ?, ?)");
             ps.setString(1, p);
             ps.setString(2, u);
             ps.setString(3, n);
+            ps.setBoolean(4, true);
 
             ResultSet r = stmt.executeQuery(COUNT_USERS_QUERY);
             r.next();
@@ -345,9 +443,25 @@ public class ThreadClient extends Thread{
         try {
             ResultSet rs = stmt.executeQuery(GET_USERS_QUERY);
 
+            PreparedStatement ps2 = conn.prepareStatement("SELECT * FROM User WHERE username = ?");
+            ps2.setString(1, u);
+
+            ResultSet rs2 = ps2.executeQuery();
+            rs2.next();
+
+            if(rs2.getBoolean(5)){
+                ans = "FAILURE - Utilizador já logado.";
+                return ans;
+            }
+
+            PreparedStatement ps = conn.prepareStatement("UPDATE User SET session = ? WHERE username = ?");
+            ps.setBoolean(1, true);
+            ps.setString(2, u);
+
             while (rs.next()) {
                 if (u.equalsIgnoreCase(rs.getString(3)) && p.equalsIgnoreCase(rs.getString(2))) {
                     ans = "SUCCESS";
+                    ps.executeUpdate();
                     break;
                 }
             }
@@ -482,7 +596,7 @@ public class ThreadClient extends Thread{
 
     private String listContacts(int id){
         String ans = "FAILURE";
-        String contacto = "";
+        String contacto;
 
         listaC.clear();
 
@@ -491,13 +605,13 @@ public class ThreadClient extends Thread{
             ps.setInt(1, id);
             ps.setBoolean(2, true);
 
-            ResultSet rs = ps.executeQuery("SELECT * FROM UserContact WHERE user_id = " + id);
+            ResultSet rs = ps.executeQuery();
             ResultSet rs2;
             PreparedStatement ps2 = conn.prepareStatement("SELECT * FROM User WHERE user_id = ?");
 
 
             while (rs.next()) {
-                ps.setInt(1, rs.getInt(2));
+                ps2.setInt(1, rs.getInt(2));
                 rs2 = ps2.executeQuery();
                 rs2.next();
                 contacto = rs2.getString(3);
@@ -620,7 +734,7 @@ public class ThreadClient extends Thread{
 
     private String listGroups(int id){
         String ans = "FAILURE";
-        String grupo = "";
+        String grupo;
 
         listaG.clear();
 
@@ -704,10 +818,10 @@ public class ThreadClient extends Thread{
 
             if (sizeUC > 0) {
                 while (rs2.next()) {
-                    if (rs2.getInt(1) == id) {
+                    if (rs2.getInt(2) == id) {
                         if (!rs2.getBoolean(3)) {
-                            System.out.println(getUsernameByID(rs2.getInt(2)));
-                            pendingContactRequests.add(getUsernameByID(rs2.getInt(2)));
+                            System.out.println(getUsernameByID(rs2.getInt(1)));
+                            pendingContactRequests.add(getUsernameByID(rs2.getInt(1)));
                             ans = "SUCCESS";
                         }
                     }
@@ -751,11 +865,20 @@ public class ThreadClient extends Thread{
         String ans = "FAILURE";
 
         try {
-            PreparedStatement ps = conn.prepareStatement("UPDATE UserContact SET accepted = ? WHERE user_id = ?");
+            PreparedStatement ps = conn.prepareStatement("UPDATE UserContact SET accepted = ? WHERE contact_id = ?");
             ps.setBoolean(1, true);
             ps.setInt(2, id);
 
             ps.executeUpdate();
+
+            PreparedStatement ps2 = conn.prepareStatement("INSERT INTO UserContact (user_id, contact_id, accepted) values(?, ? , true)");
+            ps2.setInt(1, id);
+
+            for(String s: pendingContactRequests){
+                ps2.setInt(2, getIDFromDB(s));
+                ps2.executeUpdate();
+            }
+
             ans = "SUCCESS";
         } catch (SQLException throwables) {
             throwables.printStackTrace();
@@ -768,7 +891,7 @@ public class ThreadClient extends Thread{
         String ans = "FAILURE";
 
         try {
-            PreparedStatement ps = conn.prepareStatement("DELETE FROM UserContact WHERE accepted = ? AND user_id = ?");
+            PreparedStatement ps = conn.prepareStatement("DELETE FROM UserContact WHERE accepted = ? AND contact_id = ?");
             ps.setBoolean(1, false);
             ps.setInt(2, id);
 
@@ -922,7 +1045,7 @@ public class ThreadClient extends Thread{
 
     public String listGroupsAdmin(int id){
         String ans = "FAILURE";
-        String grupo = "";
+        String grupo;
 
         listaGAmin.clear();
 
@@ -950,7 +1073,7 @@ public class ThreadClient extends Thread{
         String ans = "FAILURE";
         boolean encontrou = false;
         groupID = 0;
-        String membro = "";
+        String membro;
 
         listaM.clear();
 
@@ -1040,7 +1163,7 @@ public class ThreadClient extends Thread{
 
     public String removeMember(String u, String n, int id){
         String ans = "FAILURE";
-        boolean encontrouID = false;
+        //boolean encontrouID = false;
         boolean encontrouNoGrupo = false;
         contactID = 0;
         groupID = 0;
@@ -1051,7 +1174,7 @@ public class ThreadClient extends Thread{
             while (rs.next()) {
                 if (u.equalsIgnoreCase(rs.getString(3))) {
                     contactID = rs.getInt(1);
-                    encontrouID = true;
+                    //encontrouID = true;
                     break;
                 }
             }
@@ -1179,5 +1302,17 @@ public class ThreadClient extends Thread{
         }
 
         return ans;
+    }
+
+    public void logout(int id){
+        try{
+            PreparedStatement ps = conn.prepareStatement("UPDATE User SET session = ? WHERE user_id = ?");
+            ps.setBoolean(1, false);
+            ps.setInt(2, id);
+
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
 }

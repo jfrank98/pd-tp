@@ -1,5 +1,6 @@
 import java.io.Serializable;
 import java.net.InetAddress;
+import java.util.ArrayList;
 
 public class ServerData implements Serializable {
     private InetAddress serverAddress;
@@ -8,6 +9,8 @@ public class ServerData implements Serializable {
     private int id = 0;
     private double timeSinceLastMsg = 0;
     private int periods = 0;
+    private ArrayList<String> clients = new ArrayList<>();
+
     public static final long serialVersionUID = 1L;
 
     public ServerData(InetAddress addr, int port){
@@ -17,6 +20,18 @@ public class ServerData implements Serializable {
     }
 
     public ServerData() {
+    }
+
+    public ArrayList<String> getClients() {
+        return clients;
+    }
+
+    public void setClients(String client) {
+        clients.add(client);
+    }
+
+    public void removeClient(String client) {
+        clients.remove(client);
     }
 
     public int getPeriods() {
