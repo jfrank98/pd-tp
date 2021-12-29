@@ -269,8 +269,7 @@ public class Cliente implements Runnable {
 
                                 if (request.getListaContactos().size() == 0) {
                                     System.out.println("\nNão tem contactos na sua lista.");
-                                }
-                                else {
+                                } else {
                                     System.out.println("\nConversas privadas: ");
                                     int i = 1;
                                     for (String contacto : request.getListaContactos()) {
@@ -287,7 +286,7 @@ public class Cliente implements Runnable {
                                     }
                                     int opt = sc.nextInt();
 
-                                    if(opt == 0){
+                                    if (opt == 0) {
                                         continue;
                                     }
 
@@ -329,20 +328,17 @@ public class Cliente implements Runnable {
 
                                             request.getF().setName(fileName);
                                             //request.setMessageContent("--- Ficheiro \"" + fileName + "\" enviado por " + request.getUsername() + " ---");
-                                        }
-                                        else if (msg.equalsIgnoreCase("!getfile")) {
+                                        } else if (msg.equalsIgnoreCase("!getfile")) {
                                             request.setReceiveFile(true);
                                             System.out.print("Nome do ficheiro a receber: ");
                                             while (!sc.hasNextLine()) ;
                                             fileName = sc.nextLine();
                                             Runnable r = new ReceiveFile(fileName, socket);
                                             new Thread(r).start();
-                                        }
-                                        else if (msg.equalsIgnoreCase("!sair")) {
+                                        } else if (msg.equalsIgnoreCase("!sair")) {
                                             inChat = false;
                                             break;
-                                        }
-                                        else {
+                                        } else {
                                             request.setMessageContent(sc.nextLine());
                                             request.setSendFile(false);
                                             request.setReceiveFile(false);
@@ -411,6 +407,103 @@ public class Cliente implements Runnable {
                                 if (request.getMessage().equals("SERVER_OFF")) {
                                     getNewServer();
                                 }
+
+                                System.out.println("\n1 - Entrar no chat");
+                                System.out.println("0 - Voltar");
+                                System.out.print("\nOpção: ");
+
+                                while (!sc.hasNextInt()) {
+                                    System.out.println("\nOpção inválida");
+                                    sc.nextLine();
+                                }
+                                int opt = sc.nextInt();
+
+                                if (opt == 1) {
+                                    request.getHistoricoGrupo().clear();
+                                    request.setGroupName(getNewGroupName());
+                                    request.setMessage("GET_GROUP_MESSAGES");
+
+                                    if (sendMessage(request, oout) == 0) continue;
+
+                                    request = (Request) oinS.readObject();
+
+                                    if(request.getMessage().equalsIgnoreCase("FAILURE - Não está em nenhum grupo com esse nome")){
+                                        System.out.println("\n" + request.getMessage());
+                                        continue;
+                                    }
+
+                                    inChat = true;
+                                    boolean enteredChat = true;
+                                    String fileName = null;
+
+                                    do {
+                                        if (enteredChat) {
+                                            System.out.println("\n\nNota: utilize os comandos !sendfile e !getfile enviar e receber ficheiros e !sair para sair do chat de grupo.\n");
+
+                                            lastMessageHistorySize = request.getHistoricoGrupo().size();
+
+                                            for (String message : request.getHistoricoGrupo()) {
+                                                System.out.println(message);
+                                            }
+
+                                            enteredChat = false;
+                                            Runnable r = new Cliente();
+                                            new Thread(r).start();
+                                        }
+                                        Thread.sleep(500);
+
+                                        //não aceita numeros !!
+                                        System.out.print(" >> ");
+                                        while (!sc.hasNextLine()) ;
+                                        String msg = sc.nextLine();
+
+                                        if (msg.equalsIgnoreCase("!sendfile")) {
+                                            request.setSendFile(true);
+                                            System.out.print("Nome do ficheiro a enviar: ");
+                                            while (!sc.hasNextLine()) ;
+                                            fileName = sc.nextLine();
+
+                                            request.getF().setName(fileName);
+                                            //request.setMessageContent("--- Ficheiro \"" + fileName + "\" enviado por " + request.getUsername() + " ---");
+                                        } else if (msg.equalsIgnoreCase("!getfile")) {
+                                            request.setReceiveFile(true);
+                                            System.out.print("Nome do ficheiro a receber: ");
+                                            while (!sc.hasNextLine()) ;
+                                            fileName = sc.nextLine();
+                                            Runnable r = new ReceiveFile(fileName, socket);
+                                            new Thread(r).start();
+                                        } else if (msg.equalsIgnoreCase("!sair")) {
+                                            inChat = false;
+                                            break;
+                                        } else {
+                                            request.setMessageContent(sc.nextLine());
+                                            request.setSendFile(false);
+                                            request.setReceiveFile(false);
+                                        }
+                                        request.setMessage("SEND_GROUP_MESSAGE");
+
+                                        if (sendMessage(request, oout) == 0) continue;
+
+                                        request = (Request) oinS.readObject();
+
+                                        if (request.isSendFile()) {
+                                            Socket socket = new Socket(request.getFileSocketAddress(), request.getFileSocketPort());
+
+                                            Runnable r = new SendFile(fileName, socket);
+                                            new Thread(r).start();
+                                        }
+
+                                    } while (true);
+                                }
+                                else if (opt == 0){
+                                    continue;
+                                }
+                                else {
+                                    System.out.println("\nOpção inválida.");
+                                    continue;
+                                }
+
+
                             }
                             else if (option2 == 2) {
                                 //Aderir a um grupo
@@ -602,21 +695,16 @@ public class Cliente implements Runnable {
                                         if (option == 1) {
                                             request.setMessage("ACCEPT_GROUP_REQUEST");
                                             request.setContact(getNewUsername());
-                                        }
-                                        else if (option == 2) {
+                                        } else if (option == 2) {
                                             request.setMessage("REJECT_GROUP_REQUEST");
                                             request.setContact(getNewUsername());
-                                        }
-                                        else if (option == 3) {
+                                        } else if (option == 3) {
                                             request.setMessage("ACCEPT_ALL_GROUP_REQUESTS");
-                                        }
-                                        else if (option == 4) {
+                                        } else if (option == 4) {
                                             request.setMessage("REJECT_ALL_GROUP_REQUESTS");
-                                        }
-                                        else if (option == 0) {
+                                        } else if (option == 0) {
                                             continue;
-                                        }
-                                        else {
+                                        } else {
                                             System.out.println("\nOpção inválida.");
                                             continue;
                                         }
@@ -729,7 +817,8 @@ public class Cliente implements Runnable {
                         } else if (request.getMessage().equals("SERVER_OFF")) {
                             getNewServer();
                         }
-                    } else if (option == 2) {
+                    }
+                    else if (option == 2) {
                         //Criar conta
                         request.setMessage("CREATE_ACCOUNT");
                         getUserCredentials(credentials, request.getMessage());
@@ -750,12 +839,14 @@ public class Cliente implements Runnable {
                         } else if (request.getMessage().equals("SUCCESS")) {
                             request.setSession(true);
                         }
-                    } else if (option == 0) {
+                    }
+                    else if (option == 0) {
                         //Sair
                         SocketGRDS.close();
                         socket.close();
                         return;
-                    } else {
+                    }
+                    else {
                         //Opção inválida
                         System.out.println("\nOpção inválida.\n");
                     }

@@ -40,6 +40,7 @@ public class ThreadClient extends Thread{
     private StartServer startServer;
     private ArrayList<ServerData> serverList;
     private ArrayList<Integer> messagesID = new ArrayList<>();
+    private ArrayList<Integer> groups = new ArrayList<>();
 
     public ThreadClient(Socket clientSocket, Statement stmt, Connection conn, StartServer startServer) {
         this.socket = clientSocket;
@@ -251,17 +252,24 @@ public class ThreadClient extends Thread{
                     else if (req.getMessage().equalsIgnoreCase("GET_GROUP_MESSAGES")){
                         req.getHistoricoGrupo().clear();
 
-                        //descobrir o id do grupo
-                        //groupID = ;
-                        req.setMessage(getGroupMessages(groupID));
+                        groupID = getGroupIDFromBD(req.getGroupName(), req.getID());
 
-                        if(groupHistory.size() > 0){
-                            for(String m: groupHistory){
-                                req.addGroupHistorySuccess(m);
+                        if(groupID == 0){
+                            req.setMessage("FAILURE - Não está em nenhum grupo com esse nome");
+                        }
+                        else {
+                            req.setMessage(getGroupMessages(groupID));
+
+                            if(groupHistory.size() > 0){
+                                for(String m: groupHistory){
+                                    req.addGroupHistorySuccess(m);
+                                }
                             }
                         }
+
                     }
                     else if (req.getMessage().equalsIgnoreCase("SEND_MESSAGE")) {
+
                         if (req.isSendFile()){
                             ServerSocket fileSocket = new ServerSocket(0);
                             req.setFileSocketPort(fileSocket.getLocalPort());
@@ -271,6 +279,25 @@ public class ThreadClient extends Thread{
                             new Thread(r).start();
                         }
                         req.setMessage(createMessage(req.getID(), req.getMessageContent(), getIDFromDB(req.getContact()), req.isSendFile(), req.getF()));
+                    }
+                    else if (req.getMessage().equalsIgnoreCase("SEND_GROUP_MESSAGE")) {
+
+                        if (req.isSendFile()){
+                            ServerSocket fileSocket = new ServerSocket(0);
+                            req.setFileSocketPort(fileSocket.getLocalPort());
+                            req.setFileSocketAddress(fileSocket.getInetAddress());
+                            System.out.println("Receber ficheiro ");
+                            Runnable r = new ReceiveFile(req.getF().getName(), fileSocket);
+                            new Thread(r).start();
+                        }
+                        groupID = getGroupIDFromBD(req.getGroupName(), req.getID());
+
+                        if(groupID == 0){
+                            req.setMessage("FAILURE - Não está em nenhum grupo com esse nome");
+                        }
+                        else{
+                            req.setMessage(createGroupMessage(req.getID(), req.getMessageContent(), groupID, req.isSendFile(), req.getF()));
+                        }
                     }
 
                     //Envia resposta ao cliente
@@ -308,7 +335,6 @@ public class ThreadClient extends Thread{
             ps.setTimestamp(2, ts);
             ps.setInt(3, id);
 
-
             ps.executeUpdate();
 
             ResultSet rs2 = ps.getGeneratedKeys();
@@ -340,18 +366,54 @@ public class ThreadClient extends Thread{
         return ans;
     }
 
+    public String createGroupMessage(int id, String message, int gID, boolean isFile, File f){
+        String ans = "FAILURE";
+
+        try {
+
+            PreparedStatement ps = conn.prepareStatement("INSERT INTO Message (content, timestamp, User_user_id, Group_id) VALUES (?, ?, ?, ?);", Statement.RETURN_GENERATED_KEYS);
+            ps.setString(1, getUsernameByID(id) + ": " + message);
+            Timestamp ts = Timestamp.from(Instant.now());
+            ps.setTimestamp(2, ts);
+            ps.setInt(3, id);
+            ps.setInt(4, gID);
+
+            ps.executeUpdate();
+
+            ResultSet rs2 = ps.getGeneratedKeys();
+            int mid = 0;
+            if (rs2.next()) {
+                mid = rs2.getInt(1);
+                f.setUniqueName(f.getName() + "_" + mid);
+            }
+
+            if (isFile) {
+                PreparedStatement ps2 = conn.prepareStatement("INSERT INTO File (file_name, Message_message_id) VALUES (?, ?)");
+                ps2.setString(1, f.getUniqueName());
+                ps2.setInt(2, mid);
+                ps2.executeUpdate();
+            }
+
+            ans = "SUCCESS";
+        } catch (SQLException throwables) {
+            throwables.printStackTrace();
+        }
+
+        return ans;
+    }
+
     private String getGroupMessages(int gID){
         String ans = "FAILURE";
         groupHistory.clear();
 
         try {
-            PreparedStatement ps = conn.prepareStatement("SELECT * FROM Message WHERE group_id = ?");
+            PreparedStatement ps = conn.prepareStatement("SELECT * FROM Message WHERE group_id = ? ORDER BY timestamp");
             ps.setInt(1, gID);
 
             ResultSet rs = ps.executeQuery();
 
             while (rs.next()){
-                groupHistory.add(rs.getString(2));
+                groupHistory.add(" (" + rs.getTimestamp(3) + ") " + rs.getString(2));
             }
 
             ans = "SUCCESS";
@@ -567,6 +629,40 @@ public class ThreadClient extends Thread{
             System.out.println("\n" + e);
         }
         return id;
+    }
+
+    private int getGroupIDFromBD(String g, int id){
+        int groupID = 0;
+        groups.clear();
+
+        try {
+            ResultSet rs = stmt.executeQuery("SELECT * FROM Useringroup WHERE accepted = true AND group_user_id = " + id);
+
+            while (rs.next()) {
+                groups.add(rs.getInt(1));
+            }
+
+            for(int i: groups)
+                System.out.println(i);
+
+
+            ResultSet rs2 = stmt.executeQuery(GET_GROUPS_QUERY);
+
+            while (rs2.next()){
+                for(int i: groups){
+                    if(i == rs2.getInt(1) && g.equalsIgnoreCase(rs2.getString(3))){
+                        groupID = i;
+                    }
+                }
+            }
+
+            System.out.println("id do grupo: " + groupID);
+
+
+        }catch(SQLException e){
+            System.out.println("\n" + e);
+        }
+        return groupID;
     }
 
     private String getNameFromDB(String u){
@@ -1356,11 +1452,17 @@ public class ThreadClient extends Thread{
                 return ans;
             }
 
-            PreparedStatement ps = conn.prepareStatement("DELETE FROM UserInGroup WHERE group_group_id = ? AND group_user_id = ?");
-            ps.setInt(1, groupID);
-            ps.setInt(2, contactID);
+            PreparedStatement ps = conn.prepareStatement("DELETE FROM Message WHERE User_user_id = ? AND group_id = ?");
+            ps.setInt(1, contactID);
+            ps.setInt(2, groupID);
 
             ps.executeUpdate();
+
+            PreparedStatement ps1 = conn.prepareStatement("DELETE FROM UserInGroup WHERE group_group_id = ? AND group_user_id = ?");
+            ps1.setInt(1, groupID);
+            ps1.setInt(2, contactID);
+
+            ps1.executeUpdate();
             ans = "SUCCESS";
 
         }catch(SQLException e){
