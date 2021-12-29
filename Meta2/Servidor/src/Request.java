@@ -1,4 +1,6 @@
 import java.io.Serializable;
+import java.net.InetAddress;
+import java.net.Socket;
 import java.util.ArrayList;
 
 public class Request implements Serializable {
@@ -26,13 +28,41 @@ public class Request implements Serializable {
     private ArrayList<String> historicoMensagens = new ArrayList<>();
     private ArrayList<String> historicoGrupo = new ArrayList<>();
     private String messageContent;
-    private boolean file;
+    private File f = new File();
+    private InetAddress fileSocketAddress;
+    private int fileSocketPort;
+    private boolean receiveFile;
+    private boolean sendFile;
 
     public static final long serialVersionUID = 1L;
+
+    public InetAddress getFileSocketAddress() {
+        return fileSocketAddress;
+    }
+
+    public void setFileSocketAddress(InetAddress fileSocketAddress) {
+        this.fileSocketAddress = fileSocketAddress;
+    }
+
+    public int getFileSocketPort() {
+        return fileSocketPort;
+    }
+
+    public void setFileSocketPort(int fileSocketPort) {
+        this.fileSocketPort = fileSocketPort;
+    }
 
     public Request(String s, String s1) {
         username = s;
         password = s1;
+    }
+
+    public File getF() {
+        return f;
+    }
+
+    public void setF(File f) {
+        this.f = f;
     }
 
     public void setAcceptRejectIgnoreRequests(Integer i){ acceptRejectIgnoreRequests.add(i); }
@@ -192,11 +222,19 @@ public class Request implements Serializable {
         pendingJoinRequestsGroupId.add(a);
     }
 
-    public boolean isFile() {
-        return file;
+    public boolean isSendFile() {
+        return sendFile;
     }
 
-    public void setFile(boolean file) {
-        this.file = file;
+    public void setSendFile(boolean file) {
+        this.sendFile = file;
+    }
+
+    public boolean isReceiveFile() {
+        return receiveFile;
+    }
+
+    public void setReceiveFile(boolean file) {
+        this.receiveFile = file;
     }
 }
