@@ -2,9 +2,7 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.net.ServerSocket;
-import java.net.Socket;
-import java.net.SocketException;
+import java.net.*;
 import java.sql.*;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -40,8 +38,10 @@ public class ThreadClient extends Thread{
     private StartServer startServer;
     private ArrayList<ServerData> serverList;
     private ArrayList<Integer> messagesID = new ArrayList<>();
+    private boolean uploaded;
 
     public ThreadClient(Socket clientSocket, Statement stmt, Connection conn, StartServer startServer) {
+        System.out.println("port cli: " + clientSocket.getPort());
         this.socket = clientSocket;
         this.stmt = stmt;
         this.conn = conn;
@@ -96,14 +96,14 @@ public class ThreadClient extends Thread{
                         req.setMessage("\nLigação com o servidor estabelecida.");
                     }
                     else if (req.getMessage().equalsIgnoreCase("CREATE_ACCOUNT")){
-                        req.setMessage(createAccount(req.getUsername(), req.getPassword(), req.getName()));
+                        req.setMessage(createAccount(req.getUsername(), req.getPassword(), req.getName(), startServer.getServerSocketAddress(), startServer.getServerSocketPort()));
 
                         if(req.getMessage().equalsIgnoreCase("SUCCESS")){
                             req.setID(getIDFromDB(req.getUsername()));
                         }
                     }
                     else if (req.getMessage().equalsIgnoreCase("LOGIN")) {
-                        req.setMessage(loginUser(req.getUsername(), req.getPassword()));
+                        req.setMessage(loginUser(req.getUsername(), req.getPassword(), startServer.getServerSocketAddress(), startServer.getServerSocketPort()));
 
                         if(req.getMessage().equalsIgnoreCase("SUCCESS")){
                             req.setID(getIDFromDB(req.getUsername()));
@@ -263,14 +263,21 @@ public class ThreadClient extends Thread{
                     }
                     else if (req.getMessage().equalsIgnoreCase("SEND_MESSAGE")) {
                         if (req.isSendFile()){
+                            uploaded = false;
+
                             ServerSocket fileSocket = new ServerSocket(0);
                             req.setFileSocketPort(fileSocket.getLocalPort());
                             req.setFileSocketAddress(fileSocket.getInetAddress());
-                            System.out.println("Receber ficheiro ");
-                            Runnable r = new ReceiveFile(req.getF().getName(), fileSocket);
+                            Runnable r = new ReceiveFile(req.getF().getName(), fileSocket, this);
                             new Thread(r).start();
+                            File f;
+                            f = getAffectedUsers(req.getID(), req.getContact(), false);
+                            f.setName(req.getF().getName());
+                            startServer.setFile(f);
                         }
-                        req.setMessage(createMessage(req.getID(), req.getMessageContent(), getIDFromDB(req.getContact()), req.isSendFile(), req.getF()));
+                        else {
+                            req.setMessage(createMessage(req.getID(), req.getMessageContent(), getIDFromDB(req.getContact()), req.isSendFile(), req.getF()));
+                        }
                     }
 
                     //Envia resposta ao cliente
@@ -281,6 +288,32 @@ public class ThreadClient extends Thread{
                 return;
             }
         }
+    }
+
+    public StartServer getStartServer() { return startServer; }
+
+    public boolean isUploaded() { return uploaded; }
+
+    public void setUploaded(boolean a) { uploaded = a; }
+
+    private File getAffectedUsers(int id, String contact, boolean isGroup) {
+        File f = new File();
+        try {
+            if (!isGroup) {
+                PreparedStatement ps = conn.prepareStatement("SELECT * FROM User WHERE user_id = ?");
+                ps.setInt(1, getIDFromDB(contact));
+
+                ResultSet rs = ps.executeQuery();
+                rs.next();
+                f.addAffectedClients(new ClientData(InetAddress.getByName("localhost"), rs.getInt(6)));
+                f.setLocationAddress(socket.getLocalAddress());
+                f.setLocationPort(socket.getLocalPort());
+            }
+        } catch (SQLException | UnknownHostException throwables) {
+            throwables.printStackTrace();
+        }
+        System.out.println("");
+        return f;
     }
 
     public String createMessage(int id, String message, int cid, boolean isFile, File f) {
@@ -403,15 +436,17 @@ public class ThreadClient extends Thread{
         return ans;
     }
 
-    public String createAccount(String u, String p, String n) {
+    public String createAccount(String u, String p, String n, String addr, int port) {
         String ans = null;
 
         try {
-            PreparedStatement ps = conn.prepareStatement("INSERT INTO User (password, username, name, session) VALUES (?, ?, ?, ?)");
+            PreparedStatement ps = conn.prepareStatement("INSERT INTO User (password, username, name, session, address, port) VALUES (?, ?, ?, ?, ?, ?)");
             ps.setString(1, p);
             ps.setString(2, u);
             ps.setString(3, n);
             ps.setBoolean(4, true);
+            ps.setString(5, addr.replace("/", ""));
+            ps.setInt(6, port);
 
             ResultSet r = stmt.executeQuery(COUNT_USERS_QUERY);
             r.next();
@@ -448,7 +483,7 @@ public class ThreadClient extends Thread{
         return ans;
     }
 
-    public String loginUser(String u, String p) {
+    public String loginUser(String u, String p, String addr, int port) {
         String ans = "FAILURE";
 
         try {
@@ -464,10 +499,12 @@ public class ThreadClient extends Thread{
                 ans = "FAILURE - Utilizador já logado.";
                 return ans;
             }
-
-            PreparedStatement ps = conn.prepareStatement("UPDATE User SET session = ? WHERE username = ?");
+            System.out.println("address:   " + addr);
+            PreparedStatement ps = conn.prepareStatement("UPDATE User SET session = ?, address = ?, port = ? WHERE username = ?");
             ps.setBoolean(1, true);
-            ps.setString(2, u);
+            ps.setString(2, addr.replace("/", ""));
+            ps.setInt(3, port);
+            ps.setString(4, u);
 
             while (rs.next()) {
                 if (u.equalsIgnoreCase(rs.getString(3)) && p.equalsIgnoreCase(rs.getString(2))) {
@@ -712,7 +749,7 @@ public class ThreadClient extends Thread{
             }
 
             //get todas as mensagens do user1 para o user2
-            PreparedStatement ps4 = conn.prepareStatement("SELECT * FROM Messagerecipient WHERE sender_id = ? AND recipient_id = ?");
+            PreparedStatement ps4 = conn.prepareStatement("SELECT * FROM MessageRecipient WHERE sender_id = ? AND recipient_id = ?");
             ps4.setInt(1, id);
             ps4.setInt(2, contactID);
             ResultSet rs1 = ps4.executeQuery();
@@ -722,7 +759,7 @@ public class ThreadClient extends Thread{
             }
 
             //get todas as mensagens do user2 para o user1
-            PreparedStatement ps5 = conn.prepareStatement("SELECT * FROM Messagerecipient WHERE sender_id = ? AND recipient_id = ?");
+            PreparedStatement ps5 = conn.prepareStatement("SELECT * FROM MessageRecipient WHERE sender_id = ? AND recipient_id = ?");
             ps5.setInt(1, contactID);
             ps5.setInt(2, id);
             ResultSet rs2 = ps5.executeQuery();
@@ -731,7 +768,7 @@ public class ThreadClient extends Thread{
                 messagesID.add(rs2.getInt(3));
             }
 
-            PreparedStatement ps = conn.prepareStatement("DELETE FROM Messagerecipient WHERE message_id = ?");
+            PreparedStatement ps = conn.prepareStatement("DELETE FROM MessageRecipient WHERE message_id = ?");
             for(int i: messagesID){
                 ps.setInt(1, i);
                 ps.executeUpdate();
@@ -912,7 +949,7 @@ public class ThreadClient extends Thread{
 
             ps.executeUpdate();
 
-            PreparedStatement ps2 = conn.prepareStatement("INSERT INTO Usercontact (user_id, contact_id, accepted) values(?, ? , true)");
+            PreparedStatement ps2 = conn.prepareStatement("INSERT INTO UserContact (user_id, contact_id, accepted) values(?, ? , true)");
             ps2.setInt(1, id);
             ps2.setInt(2, getIDFromDB(c));
 
@@ -1036,7 +1073,7 @@ public class ThreadClient extends Thread{
                 return ans;
             }
 
-            PreparedStatement ps = conn.prepareStatement("UPDATE Useringroup SET accepted = ? WHERE group_user_id = ? AND group_admin = ?");
+            PreparedStatement ps = conn.prepareStatement("UPDATE UserInGroup SET accepted = ? WHERE group_user_id = ? AND group_admin = ?");
             ps.setBoolean(1, true);
             ps.setInt(2, contactID);
             ps.setInt(3, id);
@@ -1064,7 +1101,7 @@ public class ThreadClient extends Thread{
                 return ans;
             }
 
-            PreparedStatement ps = conn.prepareStatement("DELETE FROM Useringroup WHERE group_user_id = ? AND group_admin = ? AND accepted = ?");
+            PreparedStatement ps = conn.prepareStatement("DELETE FROM UserInGroup WHERE group_user_id = ? AND group_admin = ? AND accepted = ?");
             ps.setInt(1, contactID);
             ps.setInt(2, id);
             ps.setBoolean(3, false);

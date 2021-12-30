@@ -25,6 +25,8 @@ public class Request implements Serializable {
     private ArrayList<Integer> pendingJoinRequestsGroupId = new ArrayList<>();
     private ArrayList<String> pendingContactRequests = new ArrayList<>();
     private ArrayList<Integer> acceptRejectIgnoreRequests = new ArrayList<>();
+    private int port = 0;
+    private String address;
     private ArrayList<String> historicoMensagens = new ArrayList<>();
     private ArrayList<String> historicoGrupo = new ArrayList<>();
     private String messageContent;
@@ -35,6 +37,22 @@ public class Request implements Serializable {
     private boolean sendFile;
 
     public static final long serialVersionUID = 1L;
+
+    public int getPort() {
+        return port;
+    }
+
+    public void setPort(int port) {
+        this.port = port;
+    }
+
+    public String getAddress() {
+        return address;
+    }
+
+    public void setAddress(String address) {
+        this.address = address;
+    }
 
     public InetAddress getFileSocketAddress() {
         return fileSocketAddress;

@@ -1,7 +1,10 @@
+import com.mysql.cj.conf.ConnectionUrlParser;
+
 import java.io.*;
 import java.net.*;
 import java.sql.*;
 import java.util.ArrayList;
+import java.util.List;
 
 public class StartServer implements Runnable {
     private static final int MAX_SIZE = 4096;
@@ -13,7 +16,7 @@ public class StartServer implements Runnable {
     private static final String JDBC_DRIVER = "com.mysql.cj.jdbc.Driver";
     private static final String DB_URL = "jdbc:mysql://localhost:3306/pd_chat";
     private static final String USER = "root";
-    private static final String PASS = "root";
+    private static final String PASS = "rootpw";
     private static ArrayList<Socket> listClientSockets = new ArrayList<>();
     private static ServerSocket listeningSocket;
     private static String command = "";
@@ -21,6 +24,9 @@ public class StartServer implements Runnable {
     private static DatagramSocket SocketGRDS = null;
     private static DatagramPacket packet = null;
     private static ArrayList<ServerData> serverList = new ArrayList<>();
+    private static boolean newFile = false;
+    private static File file = new File();
+    private Request request = new Request();
     public StartServer(StartServer startServer) {
 
     }
@@ -28,6 +34,10 @@ public class StartServer implements Runnable {
     public StartServer() {
 
     }
+
+    public boolean isNewFile() { return newFile; }
+
+    public void setNewFile(boolean newFile) { StartServer.newFile = newFile; }
 
     public void startServer(String [] args) {
         boolean connected = false;
@@ -60,7 +70,7 @@ public class StartServer implements Runnable {
         try {
             //Cria um DatagramSocket para comunicar com o GRDS
             SocketGRDS = new DatagramSocket();
-            SocketGRDS.setSoTimeout(3000);
+            SocketGRDS.setSoTimeout(10000);
         } catch(SocketException e) {
             e.printStackTrace();
         }
@@ -74,9 +84,10 @@ public class StartServer implements Runnable {
                     AddrGRDS = InetAddress.getByName(args[1]);
                     PortGRDS = Integer.parseInt(args[2]);
                 }
-
+                request.setMessage(ADDR_PORT_REQUEST);
+                byte [] data = serialize(request);
                 //Cria um DatagramPacket e envia-o ao GRDS através do DatagramSocket criado anteriormente
-                packet = new DatagramPacket(ADDR_PORT_REQUEST.getBytes(), ADDR_PORT_REQUEST.length(), AddrGRDS, PortGRDS);
+                packet = new DatagramPacket(data, data.length, AddrGRDS, PortGRDS);
                 SocketGRDS.send(packet);
 
                 //Limpa o packet e recebe resposta do GRDS
@@ -147,24 +158,73 @@ public class StartServer implements Runnable {
         }
     }
 
+    public File getFile() {
+        return file;
+    }
+
+    public void setFile(File file) {
+        StartServer.file = file;
+    }
+
     public void run() {
         int attempt = 0;
         int cycle = 0;
-        String req = "CHECK_GRDS";
-
+        String req;
+        byte [] data;
         while(attempt != 3) {
             try {
-                if (cycle % 10 == 0) req = "CHECK_GRDS";
-                else req = "SERVER_ACTIVE";
+                if (cycle % 10 == 0) request.setMessage("CHECK_GRDS");
+                else request.setMessage("SERVER_ACTIVE");
 
-                packet = new DatagramPacket(req.getBytes(), req.length(), AddrGRDS, PortGRDS);
+                if (isNewFile()) {
+                    ServerSocket fileReplicaSocket = new ServerSocket(0);
+
+                    request.setFileSocketAddress(fileReplicaSocket.getInetAddress());
+                    request.setFileSocketPort(fileReplicaSocket.getLocalPort());
+
+                    request.setMessage("NEW_FILE");
+                    request.setF(file);
+                    System.out.println("reqwgwrg " + request.getF().getAffectedClients().get(0).getPort());
+
+                    List<ServerData> servers = new ArrayList<>();
+
+                    boolean added = false;
+
+                    for (ClientData cli : request.getF().getAffectedClients()) {
+                        for (ServerData s : servers) {
+                            if (cli.getPort() == s.getListeningPort()) {
+                                added = true;
+                                break;
+                            }
+                        }
+                        if (!added)
+                            servers.add(new ServerData(cli.getAddr(), cli.getPort()));
+                        added = false;
+                    }
+
+                    Runnable sendFileReplica = new SendFileReplica(request.getF().getName(), fileReplicaSocket, servers.size());
+                    new Thread(sendFileReplica).start();
+                }
+                setNewFile(false);
+
+                data = serialize(request);
+                packet = new DatagramPacket(data, data.length, AddrGRDS, PortGRDS);
                 SocketGRDS.send(packet);
 
                 packet = new DatagramPacket(new byte[MAX_SIZE], MAX_SIZE);
                 SocketGRDS.receive(packet);
 
-                ArrayList<Object> obj = (ArrayList) deserialize(packet.getData());
-                serverList = (ArrayList<ServerData>) obj.get(0);
+                request = (Request) deserialize(packet.getData());
+                if (request.getMessage().equalsIgnoreCase("NOTIFICATION_NEW_FILE")){
+                    System.out.println("new file?");
+                    File fileInfo = request.getF();
+                    System.out.println("INNN");
+
+                    Socket receiveFileSocket = new Socket(request.getFileSocketAddress(), request.getFileSocketPort());
+
+                    Runnable r = new ReceiveFileReplica(fileInfo.getName(), receiveFileSocket);
+                    new Thread(r).start();
+                }
 
                 attempt = 0;
             } catch (SocketTimeoutException e) {
@@ -206,5 +266,14 @@ public class StartServer implements Runnable {
 
     public ArrayList<ServerData> getServerList() {
         return serverList;
+    }
+
+    public int getServerSocketPort() {
+        return listeningSocket.getLocalPort();
+    }
+
+    public String getServerSocketAddress() {
+        System.out.println("aaaaaaaaaaa " + listeningSocket.getLocalSocketAddress().toString());
+        return listeningSocket.getLocalSocketAddress().toString();
     }
 }

@@ -43,21 +43,21 @@ public class Cliente implements Runnable {
             AddrGRDS = InetAddress.getByName(args[0]);
             PortGRDS = Integer.parseInt(args[1]);
             SocketGRDS.setSoTimeout(5000);
+            request.setMessage(ADDR_PORT_REQUEST);
 
+            byte [] data = serialize(request);
             //Cria um DatagramPacket e envia-o ao GRDS através do DatagramSocket criado anteriormente
-            packet = new DatagramPacket(ADDR_PORT_REQUEST.getBytes(), ADDR_PORT_REQUEST.length(), AddrGRDS, PortGRDS);
+            packet = new DatagramPacket(data, data.length, AddrGRDS, PortGRDS);
             SocketGRDS.send(packet);
 
             //Limpa o packet e recebe resposta do GRDS
             packet.setData(new byte[MAX_SIZE], 0, MAX_SIZE);
             SocketGRDS.receive(packet);
 
-            //Lê o packet com os dados de um servidor ativo e cria um objeto
-            bin = new ByteArrayInputStream(packet.getData(), 0, packet.getLength());
-            oin = new ObjectInputStream(bin);
 
-            //Lê o objeto e guarda os dados
-            server = (ServerData) oin.readObject();
+            //Lê o packet com os dados de um servidor ativo e cria um objeto
+
+            server = (ServerData) deserialize(packet.getData());
 
             System.out.println("\nEndereço IP: " + server.getServerAddress().toString());
             System.out.println("Porto de escuta: " + server.getListeningPort());
@@ -110,7 +110,7 @@ public class Cliente implements Runnable {
             request = (Request) oinS.readObject();
 
             System.out.println(request.getMessage() + "\n");
-
+            System.out.println("My port: " + SocketGRDS.getLocalPort() + " tcp port: " + socket.getLocalPort());
 //            Runnable r = new Cliente();
 //            new Thread(r).start();
 
@@ -304,27 +304,28 @@ public class Cliente implements Runnable {
 
                                     do {
                                         if (enteredChat) {
-                                            System.out.println("\n\nNota: utilize os comandos !sendfile e !getfile enviar e receber ficheiros e !sair para sair da conversa privada.\n");
+                                            System.out.println("\n\nNota: utilize os comandos !sendfile e !getfile para enviar e receber ficheiros e !sair para sair da conversa privada.\n");
 
                                             lastMessageHistorySize = request.getHistoricoMensagens().size();
                                             for (String message : request.getHistoricoMensagens()) {
                                                 System.out.println(message);
                                             }
                                             enteredChat = false;
-                                            Runnable r = new Cliente();
-                                            new Thread(r).start();
+                                            //Runnable r = new Cliente();
+                                            //new Thread(r).start();
                                         }
-                                        Thread.sleep(500);
+                                        //Thread.sleep(500);
 
                                         //não aceita numeros !!
                                         System.out.print(" >> ");
-                                        while (!sc.hasNextLine()) ;
+                                        while (!sc.hasNextLine());
+
                                         String msg = sc.nextLine();
 
                                         if (msg.equalsIgnoreCase("!sendfile")) {
                                             request.setSendFile(true);
                                             System.out.print("Nome do ficheiro a enviar: ");
-                                            while (!sc.hasNextLine()) ;
+                                            while (!sc.hasNextLine());
                                             fileName = sc.nextLine();
 
                                             request.getF().setName(fileName);
@@ -333,7 +334,7 @@ public class Cliente implements Runnable {
                                         else if (msg.equalsIgnoreCase("!getfile")) {
                                             request.setReceiveFile(true);
                                             System.out.print("Nome do ficheiro a receber: ");
-                                            while (!sc.hasNextLine()) ;
+                                            while (!sc.hasNextLine());
                                             fileName = sc.nextLine();
                                             Runnable r = new ReceiveFile(fileName, socket);
                                             new Thread(r).start();
@@ -344,8 +345,6 @@ public class Cliente implements Runnable {
                                         }
                                         else {
                                             request.setMessageContent(sc.nextLine());
-                                            request.setSendFile(false);
-                                            request.setReceiveFile(false);
                                         }
                                         request.setMessage("SEND_MESSAGE");
 
@@ -358,6 +357,7 @@ public class Cliente implements Runnable {
 
                                             Runnable r = new SendFile(fileName, socket);
                                             new Thread(r).start();
+                                            request.setSendFile(false);
                                         }
 
                                     } while (true);
@@ -717,6 +717,8 @@ public class Cliente implements Runnable {
                         getUserCredentials(credentials, request.getMessage());
                         request.setUsername(credentials.get(0));
                         request.setPassword(credentials.get(1));
+                        request.setAddress(socket.getInetAddress().toString());
+                        request.setPort(socket.getPort());
 
                         //Tenta enviar pedido de LOGIN ao servidor
                         if (sendMessage(request, oout) == 0) continue;
@@ -736,6 +738,8 @@ public class Cliente implements Runnable {
                         request.setUsername(credentials.get(0));
                         request.setPassword(credentials.get(1));
                         request.setName(credentials.get(2));
+                        request.setAddress(socket.getLocalAddress().toString());
+                        request.setPort(socket.getLocalPort());
 
                         //Tenta enviar pedido de CREATE_ACCOUNT ao servidor
                         if (sendMessage(request, oout) == 0) continue;
@@ -765,9 +769,9 @@ public class Cliente implements Runnable {
 
         } catch (IOException | ClassNotFoundException e) {
             e.printStackTrace();
-        } catch (InterruptedException e) {
+        } /*catch (InterruptedException e) {
             e.printStackTrace();
-        }
+        }*/
     }
 
 
@@ -865,8 +869,10 @@ public class Cliente implements Runnable {
 
         while (attempt != 3) {
             try {
+                request.setMessage(ADDR_PORT_REQUEST);
+                byte [] data = serialize(request);
 
-                packet = new DatagramPacket(ADDR_PORT_REQUEST.getBytes(), ADDR_PORT_REQUEST.length(), AddrGRDS, PortGRDS);
+                packet = new DatagramPacket(data, data.length, AddrGRDS, PortGRDS);
                 SocketGRDS.send(packet);
 
                 packet.setData(new byte[MAX_SIZE], 0, MAX_SIZE);
@@ -879,10 +885,7 @@ public class Cliente implements Runnable {
                     continue;
                 }
 
-                bin = new ByteArrayInputStream(packet.getData(), 0, packet.getLength());
-                oin = new ObjectInputStream(bin);
-
-                newServer = (ServerData) oin.readObject();
+                newServer = (ServerData) deserialize(packet.getData());
 
                 if (newServer.getListeningPort() != 0) {
                     System.out.println("\nNovo endereço IP: " + newServer.getServerAddress().toString());
@@ -956,5 +959,17 @@ public class Cliente implements Runnable {
                 e.printStackTrace();
             }
         }*/
+    }
+    public static byte[] serialize(Object obj) throws IOException {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        ObjectOutputStream os = new ObjectOutputStream(out);
+        os.writeObject(obj);
+        return out.toByteArray();
+    }
+
+    public static Object deserialize(byte[] data) throws IOException,   ClassNotFoundException {
+        ByteArrayInputStream in = new ByteArrayInputStream(data);
+        ObjectInputStream is = new ObjectInputStream(in);
+        return is.readObject();
     }
 }
