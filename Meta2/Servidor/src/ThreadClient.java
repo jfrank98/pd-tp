@@ -2,9 +2,7 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.net.ServerSocket;
-import java.net.Socket;
-import java.net.SocketException;
+import java.net.*;
 import java.sql.*;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -26,9 +24,12 @@ public class ThreadClient extends Thread{
     private Statement stmt;
     private Connection conn;
     private ArrayList<String> listaC = new ArrayList<>();
+    private ArrayList<String> listaE = new ArrayList<>();
     private ArrayList<String> listaG = new ArrayList<>();
+    private ArrayList<String> listaAdmins = new ArrayList<>();
     private ArrayList<String> listaGAmin = new ArrayList<>();
     private ArrayList<String> listaM = new ArrayList<>();
+    private ArrayList<String> listaU = new ArrayList<>();
     private ArrayList<String> pendingJoinRequests = new ArrayList<>();
     private ArrayList<String> pendingContactRequests = new ArrayList<>();
     private ArrayList<Integer> pendingJoinRequestsGroupId = new ArrayList<>();
@@ -37,12 +38,16 @@ public class ThreadClient extends Thread{
     private int contactID;
     private int groupID;
     private int adminID;
+    private String User;
+    private String Username;
     private StartServer startServer;
     private ArrayList<ServerData> serverList;
     private ArrayList<Integer> messagesID = new ArrayList<>();
     private ArrayList<Integer> groups = new ArrayList<>();
+    private boolean uploaded;
 
     public ThreadClient(Socket clientSocket, Statement stmt, Connection conn, StartServer startServer) {
+        System.out.println("port cli: " + clientSocket.getPort());
         this.socket = clientSocket;
         this.stmt = stmt;
         this.conn = conn;
@@ -97,14 +102,14 @@ public class ThreadClient extends Thread{
                         req.setMessage("\nLigação com o servidor estabelecida.");
                     }
                     else if (req.getMessage().equalsIgnoreCase("CREATE_ACCOUNT")){
-                        req.setMessage(createAccount(req.getUsername(), req.getPassword(), req.getName()));
+                        req.setMessage(createAccount(req.getUsername(), req.getPassword(), req.getName(), startServer.getServerSocketAddress(), startServer.getServerSocketPort()));
 
                         if(req.getMessage().equalsIgnoreCase("SUCCESS")){
                             req.setID(getIDFromDB(req.getUsername()));
                         }
                     }
                     else if (req.getMessage().equalsIgnoreCase("LOGIN")) {
-                        req.setMessage(loginUser(req.getUsername(), req.getPassword()));
+                        req.setMessage(loginUser(req.getUsername(), req.getPassword(), startServer.getServerSocketAddress(), startServer.getServerSocketPort()));
 
                         if(req.getMessage().equalsIgnoreCase("SUCCESS")){
                             req.setID(getIDFromDB(req.getUsername()));
@@ -125,11 +130,17 @@ public class ThreadClient extends Thread{
                     }
                     else if (req.getMessage().equalsIgnoreCase("LIST_CONTACTS")){
                         req.getListaContactos().clear();
+                        req.getListaEstados().clear();
+
                         req.setMessage(listContacts(req.getID()));
 
                         if (listaC.size() > 0) {
                             for (String c : listaC) {
                                 req.addContactSuccess(c);
+                            }
+
+                            for(String e : listaE){
+                                req.addEstadoSuccess(e);
                             }
                         }
                     }
@@ -143,6 +154,25 @@ public class ThreadClient extends Thread{
                             req.getHistoricoMensagens().clear();
                         }
                     }
+                    else if (req.getMessage().equalsIgnoreCase("LIST_ALL_USERS")){
+                        req.getListaUtilizadores().clear();
+                        req.setMessage(listUsers());
+
+                        if (listaU.size() > 0) {
+                            for (String u : listaU) {
+                                req.addUserSuccess(u);
+                            }
+                        }
+                    }
+                    else if (req.getMessage().equalsIgnoreCase("SEARCH_USER")){
+
+                        req.setMessage(searchUser(req.getUserUsername()));
+
+                        if(req.getMessage().equalsIgnoreCase("SUCCESS")){
+                            req.setUser(User);
+                            req.setUserUsername(Username);
+                        }
+                    }
                     else if (req.getMessage().equalsIgnoreCase("LIST_GROUPS")){
                         req.getListaGrupos().clear();
                         req.setMessage(listGroups(req.getID()));
@@ -150,6 +180,30 @@ public class ThreadClient extends Thread{
                         if (listaG.size() > 0) {
                             for (String g : listaG) {
                                 req.addGroupSuccess(g);
+                            }
+                        }
+                    }
+                    else if (req.getMessage().equalsIgnoreCase("LIST_ALL_GROUPS_AND_MEMBERS")){
+                        req.getListaTodosGrupos().clear();
+                        req.setMessage(listAllGroupsAndMembers());
+
+                        if (listaG.size() > 0) {
+                            for (String g : listaG) {
+                                req.addAllGroupSuccess(g);
+                            }
+
+                            for (String a : listaAdmins){
+                                req.addAdminSuccess(a);
+                            }
+                        }
+                    }
+                    else if (req.getMessage().equalsIgnoreCase("GET_GROUP_MEMBERS")){
+                        req.getListaMembrosGrupo().clear();
+                        req.setMessage(getAllMembers(req.getGroupName(), req.getGroupAdmin()));
+
+                        if (listaM.size() > 0) {
+                            for (String m : listaM) {
+                                req.addMemberGroupSuccess(m);
                             }
                         }
                     }
@@ -271,14 +325,21 @@ public class ThreadClient extends Thread{
                     else if (req.getMessage().equalsIgnoreCase("SEND_MESSAGE")) {
 
                         if (req.isSendFile()){
+                            uploaded = false;
+
                             ServerSocket fileSocket = new ServerSocket(0);
                             req.setFileSocketPort(fileSocket.getLocalPort());
                             req.setFileSocketAddress(fileSocket.getInetAddress());
-                            System.out.println("Receber ficheiro ");
-                            Runnable r = new ReceiveFile(req.getF().getName(), fileSocket);
+                            Runnable r = new ReceiveFile(req.getF().getName(), fileSocket, this);
                             new Thread(r).start();
+                            File f;
+                            f = getAffectedUsers(req.getID(), req.getContact(), false);
+                            f.setName(req.getF().getName());
+                            startServer.setFile(f);
                         }
-                        req.setMessage(createMessage(req.getID(), req.getMessageContent(), getIDFromDB(req.getContact()), req.isSendFile(), req.getF()));
+                        else {
+                            req.setMessage(createMessage(req.getID(), req.getMessageContent(), getIDFromDB(req.getContact()), req.isSendFile(), req.getF()));
+                        }
                     }
                     else if (req.getMessage().equalsIgnoreCase("SEND_GROUP_MESSAGE")) {
 
@@ -308,6 +369,32 @@ public class ThreadClient extends Thread{
                 return;
             }
         }
+    }
+
+    public StartServer getStartServer() { return startServer; }
+
+    public boolean isUploaded() { return uploaded; }
+
+    public void setUploaded(boolean a) { uploaded = a; }
+
+    private File getAffectedUsers(int id, String contact, boolean isGroup) {
+        File f = new File();
+        try {
+            if (!isGroup) {
+                PreparedStatement ps = conn.prepareStatement("SELECT * FROM User WHERE user_id = ?");
+                ps.setInt(1, getIDFromDB(contact));
+
+                ResultSet rs = ps.executeQuery();
+                rs.next();
+                f.addAffectedClients(new ClientData(InetAddress.getByName("localhost"), rs.getInt(6)));
+                f.setLocationAddress(socket.getLocalAddress());
+                f.setLocationPort(socket.getLocalPort());
+            }
+        } catch (SQLException | UnknownHostException throwables) {
+            throwables.printStackTrace();
+        }
+        System.out.println("");
+        return f;
     }
 
     public String createMessage(int id, String message, int cid, boolean isFile, File f) {
@@ -465,15 +552,17 @@ public class ThreadClient extends Thread{
         return ans;
     }
 
-    public String createAccount(String u, String p, String n) {
+    public String createAccount(String u, String p, String n, String addr, int port) {
         String ans = null;
 
         try {
-            PreparedStatement ps = conn.prepareStatement("INSERT INTO User (password, username, name, session) VALUES (?, ?, ?, ?)");
+            PreparedStatement ps = conn.prepareStatement("INSERT INTO User (password, username, name, session, server_port, server_address) VALUES (?, ?, ?, ?, ?, ?)");
             ps.setString(1, p);
             ps.setString(2, u);
             ps.setString(3, n);
             ps.setBoolean(4, true);
+            ps.setInt(5, port);
+            ps.setString(6, addr.replace("/", ""));
 
             ResultSet r = stmt.executeQuery(COUNT_USERS_QUERY);
             r.next();
@@ -510,7 +599,7 @@ public class ThreadClient extends Thread{
         return ans;
     }
 
-    public String loginUser(String u, String p) {
+    public String loginUser(String u, String p, String addr, int port) {
         String ans = "FAILURE";
 
         try {
@@ -527,9 +616,12 @@ public class ThreadClient extends Thread{
                 return ans;
             }
 
-            PreparedStatement ps = conn.prepareStatement("UPDATE User SET session = ? WHERE username = ?");
+            System.out.println("address:   " + addr);
+            PreparedStatement ps = conn.prepareStatement("UPDATE User SET session = ?, server_address = ?, server_port = ? WHERE username = ?");
             ps.setBoolean(1, true);
-            ps.setString(2, u);
+            ps.setString(2, addr.replace("/", ""));
+            ps.setInt(3, port);
+            ps.setString(4, u);
 
             while (rs.next()) {
                 if (u.equalsIgnoreCase(rs.getString(3)) && p.equalsIgnoreCase(rs.getString(2))) {
@@ -704,8 +796,10 @@ public class ThreadClient extends Thread{
     private String listContacts(int id){
         String ans = "FAILURE";
         String contacto;
+        boolean online;
 
         listaC.clear();
+        listaE.clear();
 
         try {
             PreparedStatement ps = conn.prepareStatement("SELECT * FROM UserContact WHERE user_id = ? AND accepted = ?");
@@ -722,7 +816,14 @@ public class ThreadClient extends Thread{
                 rs2 = ps2.executeQuery();
                 rs2.next();
                 contacto = rs2.getString(3);
+                online = rs2.getBoolean(5);
+
                 listaC.add(contacto);
+
+                if(online)
+                    listaE.add("online");
+                else
+                    listaE.add("offline");
             }
 
             ans = "SUCCESS";
@@ -808,7 +909,7 @@ public class ThreadClient extends Thread{
             }
 
             //get todas as mensagens do user1 para o user2
-            PreparedStatement ps4 = conn.prepareStatement("SELECT * FROM Messagerecipient WHERE sender_id = ? AND recipient_id = ?");
+            PreparedStatement ps4 = conn.prepareStatement("SELECT * FROM MessageRecipient WHERE sender_id = ? AND recipient_id = ?");
             ps4.setInt(1, id);
             ps4.setInt(2, contactID);
             ResultSet rs1 = ps4.executeQuery();
@@ -818,7 +919,7 @@ public class ThreadClient extends Thread{
             }
 
             //get todas as mensagens do user2 para o user1
-            PreparedStatement ps5 = conn.prepareStatement("SELECT * FROM Messagerecipient WHERE sender_id = ? AND recipient_id = ?");
+            PreparedStatement ps5 = conn.prepareStatement("SELECT * FROM MessageRecipient WHERE sender_id = ? AND recipient_id = ?");
             ps5.setInt(1, contactID);
             ps5.setInt(2, id);
             ResultSet rs2 = ps5.executeQuery();
@@ -827,7 +928,7 @@ public class ThreadClient extends Thread{
                 messagesID.add(rs2.getInt(3));
             }
 
-            PreparedStatement ps = conn.prepareStatement("DELETE FROM Messagerecipient WHERE message_id = ?");
+            PreparedStatement ps = conn.prepareStatement("DELETE FROM MessageRecipient WHERE message_id = ?");
             for(int i: messagesID){
                 ps.setInt(1, i);
                 ps.executeUpdate();
@@ -859,6 +960,61 @@ public class ThreadClient extends Thread{
         return ans;
     }
 
+    private String listUsers(){
+        String ans = "FAILURE";
+        String user;
+
+        listaU.clear();
+
+        try {
+
+            ResultSet rs = stmt.executeQuery(GET_USERS_QUERY);
+
+            while (rs.next()) {
+                user = rs.getString(3);
+                listaU.add(user);
+            }
+
+            ans = "SUCCESS";
+        }catch(SQLException e){
+            System.out.println("\n" + e);
+        }
+
+        return ans;
+    }
+
+    private String searchUser(String u){
+        String ans = "FAILURE";
+        boolean encontrou = false;
+
+        try {
+
+            PreparedStatement ps = conn.prepareStatement("SELECT * FROM User WHERE username = ?");
+            ps.setString(1, u);
+
+            ResultSet rs = ps.executeQuery();
+
+            while (rs.next()) {
+                if(u.equalsIgnoreCase(rs.getString(3))){
+                    encontrou = true;
+                    Username = rs.getString(3);
+                    User = rs.getString(4);
+                }
+            }
+
+            if(!encontrou){
+                ans = "FAILURE - Esse username não pertence a nenhum utilizador.";
+                return ans;
+            }
+
+            ans = "SUCCESS";
+        }catch(SQLException e){
+            System.out.println("\n" + e);
+        }
+
+        return ans;
+    }
+
     private String listGroups(int id){
         String ans = "FAILURE";
         String grupo;
@@ -875,6 +1031,74 @@ public class ThreadClient extends Thread{
                 rs2.next();
                 grupo = rs2.getString(3);
                 listaG.add(grupo);
+            }
+
+            ans = "SUCCESS";
+        }catch(SQLException e){
+            System.out.println("\n" + e);
+        }
+
+        return ans;
+    }
+
+    private String listAllGroupsAndMembers(){
+        String ans = "FAILURE";
+        String group;
+        int adminID;
+        String admin;
+
+        listaG.clear();
+        listaAdmins.clear();
+
+        try {
+
+            ResultSet rs = stmt.executeQuery(GET_GROUPS_QUERY);
+
+            while (rs.next()) {
+                group = rs.getString(3);
+                adminID = rs.getInt(4);
+                admin = getUsernameByID(adminID);
+                listaG.add(group);
+                listaAdmins.add(admin);
+            }
+
+            ans = "SUCCESS";
+        }catch(SQLException e){
+            System.out.println("\n" + e);
+        }
+
+        return ans;
+    }
+
+    private String getAllMembers(String g, String a){
+        String ans = "FAILURE";
+        int idGrupo;
+        String member;
+        int memberID;
+
+        listaM.clear();
+
+        try {
+            PreparedStatement ps1 = conn.prepareStatement("SELECT * FROM `Group` WHERE group_name = ? AND admin = ?");
+            ps1.setString(1, g);
+            ps1.setInt(2, getIDFromDB(a));
+            ResultSet rs1 = ps1.executeQuery();
+
+            rs1.next();
+            idGrupo = rs1.getInt(1);
+
+
+            PreparedStatement ps = conn.prepareStatement("SELECT * FROM Useringroup WHERE group_group_id = ? AND accepted =  true");
+            ps.setInt(1, idGrupo);
+
+            ResultSet rs = ps.executeQuery();
+
+            while (rs.next()){
+                memberID = rs.getInt(3);
+
+                member = getUsernameByID(memberID);
+
+                listaM.add(member);
             }
 
             ans = "SUCCESS";
@@ -1008,7 +1232,7 @@ public class ThreadClient extends Thread{
 
             ps.executeUpdate();
 
-            PreparedStatement ps2 = conn.prepareStatement("INSERT INTO Usercontact (user_id, contact_id, accepted) values(?, ? , true)");
+            PreparedStatement ps2 = conn.prepareStatement("INSERT INTO UserContact (user_id, contact_id, accepted) values(?, ? , true)");
             ps2.setInt(1, id);
             ps2.setInt(2, getIDFromDB(c));
 
@@ -1132,7 +1356,7 @@ public class ThreadClient extends Thread{
                 return ans;
             }
 
-            PreparedStatement ps = conn.prepareStatement("UPDATE Useringroup SET accepted = ? WHERE group_user_id = ? AND group_admin = ?");
+            PreparedStatement ps = conn.prepareStatement("UPDATE UserInGroup SET accepted = ? WHERE group_user_id = ? AND group_admin = ?");
             ps.setBoolean(1, true);
             ps.setInt(2, contactID);
             ps.setInt(3, id);
@@ -1160,7 +1384,7 @@ public class ThreadClient extends Thread{
                 return ans;
             }
 
-            PreparedStatement ps = conn.prepareStatement("DELETE FROM Useringroup WHERE group_user_id = ? AND group_admin = ? AND accepted = ?");
+            PreparedStatement ps = conn.prepareStatement("DELETE FROM UserInGroup WHERE group_user_id = ? AND group_admin = ? AND accepted = ?");
             ps.setInt(1, contactID);
             ps.setInt(2, id);
             ps.setBoolean(3, false);

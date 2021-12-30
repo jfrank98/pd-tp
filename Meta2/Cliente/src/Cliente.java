@@ -43,21 +43,21 @@ public class Cliente implements Runnable {
             AddrGRDS = InetAddress.getByName(args[0]);
             PortGRDS = Integer.parseInt(args[1]);
             SocketGRDS.setSoTimeout(5000);
+            request.setMessage(ADDR_PORT_REQUEST);
 
+            byte [] data = serialize(request);
             //Cria um DatagramPacket e envia-o ao GRDS através do DatagramSocket criado anteriormente
-            packet = new DatagramPacket(ADDR_PORT_REQUEST.getBytes(), ADDR_PORT_REQUEST.length(), AddrGRDS, PortGRDS);
+            packet = new DatagramPacket(data, data.length, AddrGRDS, PortGRDS);
             SocketGRDS.send(packet);
 
             //Limpa o packet e recebe resposta do GRDS
             packet.setData(new byte[MAX_SIZE], 0, MAX_SIZE);
             SocketGRDS.receive(packet);
 
-            //Lê o packet com os dados de um servidor ativo e cria um objeto
-            bin = new ByteArrayInputStream(packet.getData(), 0, packet.getLength());
-            oin = new ObjectInputStream(bin);
 
-            //Lê o objeto e guarda os dados
-            server = (ServerData) oin.readObject();
+            //Lê o packet com os dados de um servidor ativo e cria um objeto
+
+            server = (ServerData) deserialize(packet.getData());
 
             System.out.println("\nEndereço IP: " + server.getServerAddress().toString());
             System.out.println("Porto de escuta: " + server.getListeningPort());
@@ -110,7 +110,7 @@ public class Cliente implements Runnable {
             request = (Request) oinS.readObject();
 
             System.out.println(request.getMessage() + "\n");
-
+            System.out.println("My port: " + SocketGRDS.getLocalPort() + " tcp port: " + socket.getLocalPort());
 //            Runnable r = new Cliente();
 //            new Thread(r).start();
 
@@ -123,7 +123,10 @@ public class Cliente implements Runnable {
                 } else {
                     System.out.println("\n\n1 - Contactos");
                     System.out.println("2 - Grupos");
-                    System.out.println("3 - Definições");
+                    System.out.println("3 - Listar utilizadores");
+                    System.out.println("4 - Pesquisar utilizador");
+                    System.out.println("5 - Listar grupos existentes");
+                    System.out.println("6 - Definições");
                 }
 
                 System.out.println("0 - Sair");
@@ -159,15 +162,15 @@ public class Cliente implements Runnable {
                                 //Tentar enviar pedido de LIST_CONTACTS ao servidor
                                 if (sendMessage(request, oout) == 0) continue;
 
-
                                 request = (Request) oinS.readObject();
 
                                 if (request.getListaContactos().size() == 0) {
                                     System.out.println("\nNão tem contactos na sua lista.\n");
                                 } else {
                                     System.out.println("\nLista de contactos:");
-                                    for (String contacto : request.getListaContactos()) {
-                                        System.out.println("-" + contacto);
+
+                                    for(int i = 0; i < request.getListaContactos().size(); i++){
+                                        System.out.println("-" + request.getListaContactos().get(i) + " (" + request.getListaEstados().get(i) + ")");
                                     }
                                 }
 
@@ -303,27 +306,28 @@ public class Cliente implements Runnable {
 
                                     do {
                                         if (enteredChat) {
-                                            System.out.println("\n\nNota: utilize os comandos !sendfile e !getfile enviar e receber ficheiros e !sair para sair da conversa privada.\n");
+                                            System.out.println("\n\nNota: utilize os comandos !sendfile e !getfile para enviar e receber ficheiros e !sair para sair da conversa privada.\n");
 
                                             lastMessageHistorySize = request.getHistoricoMensagens().size();
                                             for (String message : request.getHistoricoMensagens()) {
                                                 System.out.println(message);
                                             }
                                             enteredChat = false;
-                                            Runnable r = new Cliente();
-                                            new Thread(r).start();
+                                            //Runnable r = new Cliente();
+                                            //new Thread(r).start();
                                         }
-                                        Thread.sleep(500);
+                                        //Thread.sleep(500);
 
                                         //não aceita numeros !!
                                         System.out.print(" >> ");
-                                        while (!sc.hasNextLine()) ;
+                                        while (!sc.hasNextLine());
+
                                         String msg = sc.nextLine();
 
                                         if (msg.equalsIgnoreCase("!sendfile")) {
                                             request.setSendFile(true);
                                             System.out.print("Nome do ficheiro a enviar: ");
-                                            while (!sc.hasNextLine()) ;
+                                            while (!sc.hasNextLine());
                                             fileName = sc.nextLine();
 
                                             request.getF().setName(fileName);
@@ -331,7 +335,7 @@ public class Cliente implements Runnable {
                                         } else if (msg.equalsIgnoreCase("!getfile")) {
                                             request.setReceiveFile(true);
                                             System.out.print("Nome do ficheiro a receber: ");
-                                            while (!sc.hasNextLine()) ;
+                                            while (!sc.hasNextLine());
                                             fileName = sc.nextLine();
                                             Runnable r = new ReceiveFile(fileName, socket);
                                             new Thread(r).start();
@@ -340,8 +344,6 @@ public class Cliente implements Runnable {
                                             break;
                                         } else {
                                             request.setMessageContent(sc.nextLine());
-                                            request.setSendFile(false);
-                                            request.setReceiveFile(false);
                                         }
                                         request.setMessage("SEND_MESSAGE");
 
@@ -354,6 +356,7 @@ public class Cliente implements Runnable {
 
                                             Runnable r = new SendFile(fileName, socket);
                                             new Thread(r).start();
+                                            request.setSendFile(false);
                                         }
 
                                     } while (true);
@@ -396,6 +399,7 @@ public class Cliente implements Runnable {
 
                                 if (request.getListaGrupos().size() == 0) {
                                     System.out.println("\n\nNão pertence a nenhum grupo.\n");
+                                    continue;
                                 } else {
                                     System.out.println("\n\nOs meus grupos:");
                                     for (String grupo : request.getListaGrupos()) {
@@ -737,6 +741,83 @@ public class Cliente implements Runnable {
                         } while (option2 != 0);
                     }
                     else if (option == 3) {
+                        //Listar todos os utilizadores
+                        request.setMessage("LIST_ALL_USERS");
+
+                        if (sendMessage(request, oout) == 0) continue;
+
+                        request = (Request) oinS.readObject();
+
+                        if (request.getListaUtilizadores().size() == 0) {
+                            System.out.println("\nNão há utilizadores registados.\n");
+                        } else {
+                            System.out.println("\nLista de utilizadores:");
+                            for (String user : request.getListaUtilizadores()) {
+                                System.out.println("-" + user);
+                            }
+                        }
+
+                        if (request.getMessage().equals("SERVER_OFF")) {
+                            getNewServer();
+                        }
+                    }
+                    else if (option == 4) {
+                        //Pesquisar utilizador
+                        request.setMessage("SEARCH_USER");
+                        request.setUserUsername(getNewUsername());
+
+                        if (sendMessage(request, oout) == 0) continue;
+
+                        request = (Request) oinS.readObject();
+
+                        if(request.getMessage().equals("SUCCESS"))
+                            System.out.println("\nUsername: " + request.getUserUsername() + "\nNome: " + request.getUser());
+                        else
+                            System.out.println("\n" + request.getMessage());
+
+                        if (request.getMessage().equals("SERVER_OFF")) {
+                            getNewServer();
+                        }
+                    }
+                    else if (option == 5) {
+                        //Listar todos os grupos
+                        request.setMessage("LIST_ALL_GROUPS_AND_MEMBERS");
+
+                        if (sendMessage(request, oout) == 0) continue;
+
+                        request = (Request) oinS.readObject();
+
+                        if (request.getListaTodosGrupos().size() == 0) {
+                            System.out.println("\n\nNão há nenhum grupo criado.\n");
+                        } else {
+                            System.out.println("\n\nLista de grupos:");
+                            for (int i = 0; i < request.getListaTodosGrupos().size(); i++) {
+                                System.out.println(request.getListaTodosGrupos().get(i));
+
+                                request.setMessage("GET_GROUP_MEMBERS");
+                                request.setGroupName(request.getListaTodosGrupos().get(i));
+                                request.setGroupAdmin(request.getListaAdmins().get(i));
+
+                                if (sendMessage(request, oout) == 0) continue;
+
+                                request = (Request) oinS.readObject();
+
+                                for(String membro : request.getListaMembrosGrupo()){
+                                    if(membro.equalsIgnoreCase(request.getGroupAdmin()))
+                                        System.out.println("  -" + membro + " (admin)");
+                                    else
+                                        System.out.println("  -" + membro);
+                                }
+
+                                System.out.println();
+                            }
+                        }
+
+                        if (request.getMessage().equals("SERVER_OFF")) {
+                            getNewServer();
+                        }
+                    }
+                    else if (option == 6) {
                         //Definições
                         do {
                             System.out.println("\n\n1 - Alterar username");
@@ -764,7 +845,8 @@ public class Cliente implements Runnable {
                                 } else if (request.getMessage().equals("SERVER_OFF")) {
                                     getNewServer();
                                 }
-                            } else if (option2 == 2) {
+                            }
+                            else if (option2 == 2) {
                                 //Alterar password
                                 request.setMessage("CHANGE_PASSWORD");
                                 request.setOldPassword(request.getPassword());
@@ -781,7 +863,8 @@ public class Cliente implements Runnable {
                                 } else if (request.getMessage().equals("SERVER_OFF")) {
                                     getNewServer();
                                 }
-                            } else if (option2 != 0) {
+                            }
+                            else if (option2 != 0) {
                                 //Opção inválida
                                 System.out.println("\nOpção inválida.");
                             }
@@ -805,6 +888,8 @@ public class Cliente implements Runnable {
                         getUserCredentials(credentials, request.getMessage());
                         request.setUsername(credentials.get(0));
                         request.setPassword(credentials.get(1));
+                        request.setAddress(socket.getInetAddress().toString());
+                        request.setPort(socket.getPort());
 
                         //Tenta enviar pedido de LOGIN ao servidor
                         if (sendMessage(request, oout) == 0) continue;
@@ -825,6 +910,8 @@ public class Cliente implements Runnable {
                         request.setUsername(credentials.get(0));
                         request.setPassword(credentials.get(1));
                         request.setName(credentials.get(2));
+                        request.setAddress(socket.getLocalAddress().toString());
+                        request.setPort(socket.getLocalPort());
 
                         //Tenta enviar pedido de CREATE_ACCOUNT ao servidor
                         if (sendMessage(request, oout) == 0) continue;
@@ -903,8 +990,10 @@ public class Cliente implements Runnable {
     public static String getNewUsername() {
         Scanner sc = new Scanner(System.in);
 
-        if (request.getMessage().equalsIgnoreCase("ADD_CONTACT") || request.getMessage().equalsIgnoreCase("REMOVE_CONTACT") || request.getMessage().equalsIgnoreCase("REMOVE_MEMBER"))
+        if (request.getMessage().equalsIgnoreCase("ADD_CONTACT") || request.getMessage().equalsIgnoreCase("REMOVE_CONTACT") || request.getMessage().equalsIgnoreCase("REMOVE_MEMBER") || request.getMessage().equalsIgnoreCase("ACCEPT_CONTACT_REQUEST") || request.getMessage().equalsIgnoreCase("REJECT_CONTACT_REQUEST"))
             System.out.print("\nNome contacto: ");
+        else if (request.getMessage().equalsIgnoreCase("SEARCH_USER"))
+            System.out.print("\nUtilizador: ");
         else
             System.out.print("\nNovo username: ");
 
@@ -956,8 +1045,10 @@ public class Cliente implements Runnable {
 
         while (attempt != 3) {
             try {
+                request.setMessage(ADDR_PORT_REQUEST);
+                byte [] data = serialize(request);
 
-                packet = new DatagramPacket(ADDR_PORT_REQUEST.getBytes(), ADDR_PORT_REQUEST.length(), AddrGRDS, PortGRDS);
+                packet = new DatagramPacket(data, data.length, AddrGRDS, PortGRDS);
                 SocketGRDS.send(packet);
 
                 packet.setData(new byte[MAX_SIZE], 0, MAX_SIZE);
@@ -970,10 +1061,7 @@ public class Cliente implements Runnable {
                     continue;
                 }
 
-                bin = new ByteArrayInputStream(packet.getData(), 0, packet.getLength());
-                oin = new ObjectInputStream(bin);
-
-                newServer = (ServerData) oin.readObject();
+                newServer = (ServerData) deserialize(packet.getData());
 
                 if (newServer.getListeningPort() != 0) {
                     System.out.println("\nNovo endereço IP: " + newServer.getServerAddress().toString());
@@ -1047,5 +1135,18 @@ public class Cliente implements Runnable {
                 e.printStackTrace();
             }
         }*/
+    }
+
+    public static byte[] serialize(Object obj) throws IOException {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        ObjectOutputStream os = new ObjectOutputStream(out);
+        os.writeObject(obj);
+        return out.toByteArray();
+    }
+
+    public static Object deserialize(byte[] data) throws IOException,   ClassNotFoundException {
+        ByteArrayInputStream in = new ByteArrayInputStream(data);
+        ObjectInputStream is = new ObjectInputStream(in);
+        return is.readObject();
     }
 }

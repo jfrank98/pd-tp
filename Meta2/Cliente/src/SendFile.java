@@ -16,6 +16,7 @@ public class SendFile implements Runnable{
         File localDirectory;
         String CanonicalFilePath = null;
         FileInputStream fileInputStream = null;
+        OutputStream out = null;
         byte []fileChunk = new byte[MAX_SIZE];
         int nbytes;
         localDirectory = new File("./".trim());
@@ -45,20 +46,26 @@ public class SendFile implements Runnable{
             }
             System.out.println(CanonicalFilePath);
             fileInputStream = new FileInputStream(CanonicalFilePath);
-            OutputStream out = serverSocket.getOutputStream();
+            out = serverSocket.getOutputStream();
+
+            out.write(CanonicalFilePath.length());
+            out.flush();
+
             do {
                 nbytes = fileInputStream.read(fileChunk);
 
                 if (nbytes > 0) {
                     out.write(fileChunk, 0, nbytes);
-                    out.flush();
+
                 }
                     /*try {
                         Thread.sleep(1);
                     } catch (InterruptedException ex) {}*/
             } while (nbytes > 0);
 
-
+            fileInputStream.close();
+            out.close();
+            System.out.println("Ficheiro enviado com sucesso.");
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         } catch (IOException e) {
@@ -68,9 +75,6 @@ public class SendFile implements Runnable{
                 System.out.println("Ocorreu a excepcao {" + e +"} ao tentar criar o ficheiro " + CanonicalFilePath + "!");
             }
 
-            return;
-        }
-        finally {
             return;
         }
     }

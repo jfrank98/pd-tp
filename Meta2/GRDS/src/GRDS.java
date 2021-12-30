@@ -4,12 +4,13 @@ import java.util.*;
 
 public class GRDS implements Runnable{
 
-    private static final int MAX_SIZE = 1024;
+    private static final int MAX_SIZE = 4096;
     private static final String SERVER_REQUEST = "SERVER_GET_ADDR_PORT_TCP";
     private static final String SERVER_GRDS_CHECK = "CHECK_GRDS";
     private static String SERVER_CHECK = "SERVER_ACTIVE";
     private static final String CLIENT_REQUEST = "GET_ADDR_PORT_TCP";
     private static List<ServerData> servers = new ArrayList<>();
+    private static List<ClientData> clients = new ArrayList<>();
     private static int server_index = 0;
 
     public GRDS(){
@@ -19,13 +20,14 @@ public class GRDS implements Runnable{
         int listeningPort;
         DatagramSocket socket = null;
         DatagramPacket packet;
-        String response;
         ByteArrayOutputStream baos;
         ObjectOutputStream oos;
         boolean firstServer = true;
-        int id = 1;
+        int serverID = 1, clientID = 1;
         ServerData empty = new ServerData();
         ArrayList<ServerData> serverList;
+        Request req, notifReq = null;
+        List<ServerData> toNotifyServers = new ArrayList<>();
 
         //Verifica se recebeu os argumentos necessários: porto de escuta
         if(args.length != 1){
@@ -48,20 +50,19 @@ public class GRDS implements Runnable{
 
                 baos = new ByteArrayOutputStream();
                 oos = new ObjectOutputStream(baos);
+                req = (Request) deserialize(packet.getData());
 
-                response = new String(packet.getData(), 0, packet.getLength());
-
-                if (!response.equalsIgnoreCase(SERVER_CHECK) && !response.equalsIgnoreCase(SERVER_GRDS_CHECK)) {
-                    System.out.println("\nPedido: " + response);
+                if (!req.getMessage().equalsIgnoreCase(SERVER_CHECK) && !req.getMessage().equalsIgnoreCase(SERVER_GRDS_CHECK)) {
+                    System.out.println("\nPedido: " + req.getMessage());
                 }
 
-                if (response.equals(SERVER_REQUEST)) {
+                if (req.getMessage().equals(SERVER_REQUEST)) {
                     System.out.println("\nMensagem do servidor com endereço IP " + packet.getAddress() + " e porto de escuta " + packet.getPort());
                     ServerData newServer = new ServerData(packet.getAddress(), packet.getPort());
                     newServer.setTimeSinceLastMsg(System.currentTimeMillis()/1000);
-                    newServer.setId(id);
+                    newServer.setId(serverID);
                     newServer.setOnline(true);
-                    id++;
+                    serverID++;
 
                     synchronized (servers) {
                         servers.add(newServer);
@@ -71,10 +72,14 @@ public class GRDS implements Runnable{
                         new Thread(r).start();
                         firstServer = false;
                     }
-                    packet.setData(SERVER_REQUEST.getBytes(), 0, SERVER_REQUEST.length());
+                    req.setMessage(SERVER_REQUEST);
+
+                    byte [] data = serialize(req);
+
+                    packet.setData(data, 0, data.length);
                     socket.send(packet);
                 }
-                else if (response.equals(SERVER_CHECK)) {
+                else if (req.getMessage().equals(SERVER_CHECK)) {
                     byte [] data;
 
                     synchronized (servers) {
@@ -87,28 +92,46 @@ public class GRDS implements Runnable{
                         }
                         serverList = new ArrayList<>(servers);
                     }
-                    ArrayList<Object> array = new ArrayList<>();
-                    array.add(serverList);
-                    data = serialize(array);
+                    /*ArrayList<Object> array = new ArrayList<>();
+                    array.add(serverList);*/
+                    data = serialize(req);
                     packet.setData(data, 0, data.length);
                     socket.send(packet);
                 }
-                else if (response.equals(SERVER_GRDS_CHECK)) {
+                else if (req.getMessage().equals(SERVER_GRDS_CHECK)) {
                     byte [] data;
                     synchronized (servers) {
                         serverList = new ArrayList<>(servers);
                     }
-                    ArrayList<Object> array = new ArrayList<>();
-                    array.add(serverList);
-                    data = serialize(array);
+                    ServerData removeFromList = null;
+                    boolean notified = false;
+
+                    //Verifica se o packet recebido é de um servidor ao qual tem de ser enviada uma notificação
+
+                    for (ServerData s : toNotifyServers){
+                        //System.out.println("packet: " + s.getListeningPort() + " tonotify: " + packet.getPort());
+                        if (s.getListeningPort() == packet.getPort()){
+                            System.out.println("yes i am");
+                            removeFromList = s;
+                            notified = true;
+                        }
+                    }
+                    if (notified){
+                        notifReq.setMessage("NOTIFICATION_NEW_FILE");
+                        System.out.println("addressFile: " + req.getFileSocketAddress());
+                        toNotifyServers.remove(removeFromList);
+                        data = serialize(notifReq);
+                    }else { data = serialize(req); }
                     packet.setData(data, 0, data.length);
                     socket.send(packet);
                 }
-                else if (response.equals(CLIENT_REQUEST)){
+                else if (req.getMessage().equals(CLIENT_REQUEST)){
                     boolean sent = false;
                     int nOffline = 0;
+
                     System.out.println("\nDados do servidor enviados ao cliente:");
                     synchronized (servers) {
+                        ServerData s;
                         if (servers.size() > 0) {
                             while (!sent) {
                                 if (nOffline == servers.size()) {
@@ -120,9 +143,11 @@ public class GRDS implements Runnable{
                                 if (servers.get(server_index).isOnline()) {
                                     System.out.println("ID - " + server_index);
                                     System.out.println("Porto de escuta - " + servers.get(server_index).getListeningPort());
-                                    oos.writeUnshared(servers.get(server_index));
+                                    s = servers.get(server_index);
+                                    oos.writeUnshared(s);
                                     byte[] data = baos.toByteArray();
                                     packet.setData(data, 0, data.length);
+                                    //clients.add(new ClientData(packet.getAddress(), packet.getPort(), clientID, s));
                                     sent = true;
                                 } else {
                                     nOffline++;
@@ -142,10 +167,47 @@ public class GRDS implements Runnable{
                     }
                     socket.send(packet);
                 }
+                else if (req.getMessage().equalsIgnoreCase("NEW_NOTIFICATION")) {
 
-                //Verifica tempo desde a última resposta de cada servidor,
-                // se passarem 60 segundos é eliminado do ArrayList
+                }
+                else if (req.getMessage().equalsIgnoreCase("NEW_FILE")){
+                    req.setMessage("CONTINUE");
 
+                    byte [] data = serialize(req);
+                    packet.setData(data, 0, data.length);
+
+                    for (ClientData cli : req.getF().getAffectedClients()) {
+                        for (ServerData s : toNotifyServers) {
+                            System.out.println("packet: " + s.getListeningPort() + " tonotify: " + cli.getPort());
+                            if (cli.getAddr() == s.getServerAddress() && cli.getPort() == s.getListeningPort()) {
+                                continue;
+                            }
+                        }
+                        toNotifyServers.add(new ServerData(cli.getAddr(), cli.getPort()));
+                    }
+                    System.out.println("fileaddr: " + req.getFileSocketAddress() + " port: " + req.getFileSocketPort());
+
+                    notifReq = req;
+
+                    socket.send(packet);
+                        /*for (ClientData affectedClient : fileInfo.getAffectedClients()) {
+                            synchronized (servers) {
+                                for (ServerData s : servers) {
+                                    System.out.println("affport: " + affectedClient.getPort() + " port: " + s.getListeningPort());
+                                    if (affectedClient.getAddr() == s.getServerAddress() && affectedClient.getPort() == s.getListeningPort()) {
+                                        System.out.println("INNN");
+                                        byte [] data = serialize(req);
+                                        req.setMessage("FILE_SHARE");
+                                        //System.out.println("server addr: " + s.getServerAddress() + " servport: " + s.getListeningPort());
+                                        packet = new DatagramPacket(data, data.length, s.getServerAddress(), s.getListeningPort());
+
+                                        socket.send(packet);
+                                    }
+                                }
+                            }
+                        }*/
+
+                }
             }
         }catch(UnknownHostException e){
             System.out.println("\nDestino desconhecido:\n\t" + e);
@@ -157,7 +219,9 @@ public class GRDS implements Runnable{
             System.out.println("\nOcorreu um erro ao nível do socket UDP:\n\t" + e);
         }catch(IOException e){
             System.out.println("\nOcorreu um erro no acesso ao socket:\n\t" + e);
-        }finally{
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        } finally{
             if(socket != null){
                 socket.close();
             }
@@ -182,10 +246,10 @@ public class GRDS implements Runnable{
             synchronized (servers) {
                 if (servers.size() == 0) continue;
 
+                //Verifica tempo desde a última resposta de cada servidor,
+                // se passarem 60 segundos é eliminado do ArrayList
                 for (final Iterator it = servers.listIterator(); it.hasNext(); ) {
-
                     double seconds = 2;
-                    //System.out.println("Time since last msg: " + ((System.currentTimeMillis()/1000) - s.getTimeSinceLastMsg()));
                     ServerData s = (ServerData) it.next();
 
                     if ((System.currentTimeMillis() / 1000) - s.getTimeSinceLastMsg() >= seconds) {
@@ -202,25 +266,6 @@ public class GRDS implements Runnable{
                         }
                     }
                 }
-
-                /*for (ServerData s : servers) {
-                    double seconds = 2;
-                    //System.out.println("Time since last msg: " + ((System.currentTimeMillis()/1000) - s.getTimeSinceLastMsg()));
-
-                    if ((System.currentTimeMillis() / 1000) - s.getTimeSinceLastMsg() >= seconds) {
-                        System.out.println("\nO servidor com id " + s.getId() + " não respondeu " + (s.getPeriods() + 1) + " vezes.");
-                        s.setPeriods(s.getPeriods() + 1);
-                        s.setTimeSinceLastMsg(System.currentTimeMillis() / 1000);
-                        s.setOnline(false);
-
-                        if (s.getPeriods() == 3) {
-                            System.out.println("\nO servidor com id " + s.getId() + " foi removido.");
-                            servers.remove(s);
-                            server_index--;
-                            if (servers.size() == 0) break;
-                        }
-                    }
-                }*/
             }
         }
     }
