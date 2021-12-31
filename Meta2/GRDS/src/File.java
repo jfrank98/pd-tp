@@ -17,10 +17,6 @@ public class File implements Serializable {
         return affectedClients;
     }
 
-    public void setAffectedClients(Integer clientPort, InetAddress address) {
-        affectedClients.add(new ClientData(address, clientPort));
-    }
-
     public String getUniqueName() {
         return unique_name;
     }
@@ -67,5 +63,12 @@ public class File implements Serializable {
 
     public void setLocationPort(int locationPort) {
         this.locationPort = locationPort;
+    }
+
+    public void setServer() {
+    }
+
+    public void addAffectedClients(ClientData clientData) {
+        affectedClients.add(clientData);
     }
 }

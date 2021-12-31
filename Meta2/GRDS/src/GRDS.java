@@ -11,6 +11,7 @@ public class GRDS implements Runnable{
     private static final String CLIENT_REQUEST = "GET_ADDR_PORT_TCP";
     private static List<ServerData> servers = new ArrayList<>();
     private static List<ClientData> clients = new ArrayList<>();
+    private static List<ClientData> allClients = new ArrayList<>();
     private static int server_index = 0;
 
     public GRDS(){
@@ -18,7 +19,7 @@ public class GRDS implements Runnable{
 
     public static void main(String[] args)  {
         int listeningPort;
-        DatagramSocket socket = null;
+        MulticastSocket socket = null;
         DatagramPacket packet;
         ByteArrayOutputStream baos;
         ObjectOutputStream oos;
@@ -26,8 +27,10 @@ public class GRDS implements Runnable{
         int serverID = 1, clientID = 1;
         ServerData empty = new ServerData();
         ArrayList<ServerData> serverList;
-        Request req, notifReq = null;
-        List<ServerData> toNotifyServers = new ArrayList<>();
+        Request req, notifNewFile = null, notificationRequest = null;
+        List<ServerData> toNotifyNewFileServers = new ArrayList<>();
+        List<ServerData> newNotificationServers = new ArrayList<>();
+
         //Verifica se recebeu os argumentos necessários: porto de escuta
         if(args.length != 1){
             System.out.println("Sintaxe: java GRDS listeningPort");
@@ -39,7 +42,11 @@ public class GRDS implements Runnable{
             System.out.println("\nPorto de escuta: " + listeningPort);
 
             //Cria um DatagramSocket para comunicar com os servidores e clientes
-            socket = new DatagramSocket(listeningPort);
+            //socket = new DatagramSocket(listeningPort);
+            socket = new MulticastSocket(listeningPort);
+            String group = "224.69.69.69";
+
+            socket.joinGroup(InetAddress.getByName(group));
 
             while(true) {
 
@@ -102,27 +109,45 @@ public class GRDS implements Runnable{
                     synchronized (servers) {
                         serverList = new ArrayList<>(servers);
                     }
-                    ServerData removeFromList = null;
-                    boolean notified = false;
+                    ServerData removeFromNewFileList = null, removeFromNewNotifList = null;
+                    boolean notifiednewfile = false, notified = false;
 
                     //Verifica se o packet recebido é de um servidor ao qual tem de ser enviada uma notificação
-
-                    for (ServerData s : toNotifyServers){
-                        //System.out.println("packet: " + s.getListeningPort() + " tonotify: " + packet.getPort());
+                    for (ServerData s : newNotificationServers) {
                         if (s.getListeningPort() == packet.getPort()){
-                            System.out.println("yes i am");
-                            removeFromList = s;
+                            System.out.println("new notif");
+                            removeFromNewNotifList = s;
                             notified = true;
                         }
                     }
+
+                    for (ServerData s : toNotifyNewFileServers){
+                        //System.out.println("packet: " + s.getListeningPort() + " tonotify: " + packet.getPort());
+                        if (s.getListeningPort() == packet.getPort()){
+                            System.out.println("new file");
+                            removeFromNewFileList = s;
+                            notifiednewfile = true;
+                        }
+                    }
                     if (notified){
-                        notifReq.setMessage("NOTIFICATION_NEW_FILE");
-                        System.out.println("addressFile: " + req.getFileSocketAddress());
-                        toNotifyServers.remove(removeFromList);
-                        data = serialize(notifReq);
-                    }else { data = serialize(req); }
+                        notificationRequest.setMessage("NEW_NOTIFICATION");
+                        newNotificationServers.remove(removeFromNewNotifList);
+                        data = serialize(notificationRequest);
+                    }
+                    else if (notifiednewfile){
+                        notifNewFile.setMessage("NOTIFICATION_NEW_FILE");
+                        toNotifyNewFileServers.remove(removeFromNewFileList);
+                        data = serialize(notifNewFile);
+                    } else { data = serialize(req); }
+
                     packet.setData(data, 0, data.length);
                     socket.send(packet);
+                }
+                else if (req.getMessage().equals("UPDATE_CLIENT_LIST")){
+                    System.out.println("clients size: " + req.getConnectedClients().size());
+                    for (ClientData cli : req.getConnectedClients()) {
+                        allClients.add(cli);
+                    }
                 }
                 else if (req.getMessage().equals(CLIENT_REQUEST)){
                     boolean sent = false;
@@ -146,7 +171,7 @@ public class GRDS implements Runnable{
                                     oos.writeUnshared(s);
                                     byte[] data = baos.toByteArray();
                                     packet.setData(data, 0, data.length);
-                                    //clients.add(new ClientData(packet.getAddress(), packet.getPort(), clientID, s));
+
                                     sent = true;
                                 } else {
                                     nOffline++;
@@ -166,8 +191,37 @@ public class GRDS implements Runnable{
                     }
                     socket.send(packet);
                 }
-                else if (req.getMessage().equalsIgnoreCase("NEW_NOTIFICATION")) {
+                else if (req.getMessage().equalsIgnoreCase("SEND_NOTIFICATION")) {
+                    req.setMessage("CONTINUE");
 
+                    System.out.println("sizeallclients " + allClients.size());
+
+                    for (ClientData cli : allClients) {
+                        req.addConnectedClient(cli);
+                    }
+
+                    byte [] data = serialize(req);
+                    packet.setData(data, 0, data.length);
+
+                    boolean added = false;
+                    System.out.println("ok so far so good");
+                    for (ClientData cli : req.getClientsToNotify()) {
+                        System.out.println("cli notif: " + cli.getPort());
+                        for (ServerData s : newNotificationServers) {
+                            System.out.println("packet: " + s.getListeningPort() + " tonotify: " + cli.getPort());
+                            if (cli.getPort() == s.getListeningPort()) {
+                                added = true;
+                                break;
+                            }
+                        }
+                        if (!added)
+                            newNotificationServers.add(new ServerData(cli.getServerAddress(), cli.getPort()));
+                        added = false;
+                    }
+
+                    notificationRequest = req;
+
+                    socket.send(packet);
                 }
                 else if (req.getMessage().equalsIgnoreCase("NEW_FILE")){
                     req.setMessage("CONTINUE");
@@ -175,37 +229,24 @@ public class GRDS implements Runnable{
                     byte [] data = serialize(req);
                     packet.setData(data, 0, data.length);
 
+                    boolean added = false;
+
                     for (ClientData cli : req.getF().getAffectedClients()) {
-                        for (ServerData s : toNotifyServers) {
+                        for (ServerData s : toNotifyNewFileServers) {
                             System.out.println("packet: " + s.getListeningPort() + " tonotify: " + cli.getPort());
-                            if (cli.getAddr() == s.getServerAddress() && cli.getPort() == s.getListeningPort()) {
-                                continue;
+                            if (cli.getServerAddress() == s.getServerAddress() && cli.getPort() == s.getListeningPort()) {
+                                added = true;
+                                break;
                             }
                         }
-                        toNotifyServers.add(new ServerData(cli.getAddr(), cli.getPort()));
+                        if (!added)
+                            toNotifyNewFileServers.add(new ServerData(cli.getServerAddress(), cli.getPort()));
+                        added = false;
                     }
-                    System.out.println("fileaddr: " + req.getFileSocketAddress() + " port: " + req.getFileSocketPort());
 
-                    notifReq = req;
+                    notifNewFile = req;
 
                     socket.send(packet);
-                        /*for (ClientData affectedClient : fileInfo.getAffectedClients()) {
-                            synchronized (servers) {
-                                for (ServerData s : servers) {
-                                    System.out.println("affport: " + affectedClient.getPort() + " port: " + s.getListeningPort());
-                                    if (affectedClient.getAddr() == s.getServerAddress() && affectedClient.getPort() == s.getListeningPort()) {
-                                        System.out.println("INNN");
-                                        byte [] data = serialize(req);
-                                        req.setMessage("FILE_SHARE");
-                                        //System.out.println("server addr: " + s.getServerAddress() + " servport: " + s.getListeningPort());
-                                        packet = new DatagramPacket(data, data.length, s.getServerAddress(), s.getListeningPort());
-
-                                        socket.send(packet);
-                                    }
-                                }
-                            }
-                        }*/
-
                 }
             }
         }catch(UnknownHostException e){

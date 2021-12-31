@@ -28,14 +28,44 @@ public class Request implements Serializable {
     private String address;
     private ArrayList<String> historicoMensagens = new ArrayList<>();
     private ArrayList<String> historicoGrupo = new ArrayList<>();
+    private ArrayList<ClientData> clientsToNotify = new ArrayList<>();
+    private ArrayList<ClientData> connectedClients = new ArrayList<>();
     private String messageContent;
     private File f = new File();
     private InetAddress fileSocketAddress;
     private int fileSocketPort;
     private boolean receiveFile;
     private boolean sendFile;
+    private ClientData userToNotify;
+    private String notificationMessage;
+    private InetAddress notificationSocketAddress;
+    private int notificationSocketPort;
 
     public static final long serialVersionUID = 1L;
+
+    public ArrayList<ClientData> getConnectedClients() {
+        return connectedClients;
+    }
+
+    public void addConnectedClient(ClientData connectedClient) {
+        connectedClients.add(connectedClient);
+    }
+
+    public InetAddress getNotificationSocketAddress() {
+        return notificationSocketAddress;
+    }
+
+    public void setNotificationSocketAddress(InetAddress notificationSocketAddress) {
+        this.notificationSocketAddress = notificationSocketAddress;
+    }
+
+    public int getNotificationSocketPort() {
+        return notificationSocketPort;
+    }
+
+    public void setNotificationSocketPort(int notificationSocketPort) {
+        this.notificationSocketPort = notificationSocketPort;
+    }
 
     public int getPort() {
         return port;
@@ -253,5 +283,20 @@ public class Request implements Serializable {
 
     public void setReceiveFile(boolean file) {
         this.receiveFile = file;
+    }
+
+    public void setUserToNotify(ClientData userAffectedByNotification) {
+        userToNotify = userAffectedByNotification;
+        clientsToNotify.add(userAffectedByNotification);
+    }
+
+    public void setNotificationMessage(String s) {
+        notificationMessage = s;
+    }
+
+    public String getNotificationMessage() { return notificationMessage; }
+
+    public ArrayList<ClientData> getClientsToNotify() {
+        return clientsToNotify;
     }
 }

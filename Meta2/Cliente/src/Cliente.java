@@ -43,6 +43,7 @@ public class Cliente implements Runnable {
             AddrGRDS = InetAddress.getByName(args[0]);
             PortGRDS = Integer.parseInt(args[1]);
             SocketGRDS.setSoTimeout(5000);
+
             request.setMessage(ADDR_PORT_REQUEST);
 
             byte [] data = serialize(request);
@@ -103,6 +104,19 @@ public class Cliente implements Runnable {
             oout = new ObjectOutputStream(socket.getOutputStream());
             oinS = new ObjectInputStream(socket.getInputStream());
 
+            //Cria socket dedicado a notificações
+            ServerSocket notificationsSocket = new ServerSocket(0);
+            new NotificationsThread(notificationsSocket).start();
+            ClientData clientData = new ClientData(serverAddress, serverPort, socket.getLocalAddress(), socket.getLocalPort());
+            clientData.setClientNotifSocketAddressPort(notificationsSocket.getInetAddress(), notificationsSocket.getLocalPort());
+            request.addConnectedClient(clientData);
+
+            request.setMessage("UPDATE_CLIENT_LIST");
+
+            byte [] data = serialize(request);
+            packet.setData(data, 0, data.length);
+            SocketGRDS.send(packet);
+
             //Envia pedido ao servidor
             request.setMessage(SERVER_REQUEST);
             oout.writeUnshared(request);
@@ -113,6 +127,8 @@ public class Cliente implements Runnable {
             System.out.println("My port: " + SocketGRDS.getLocalPort() + " tcp port: " + socket.getLocalPort());
 //            Runnable r = new Cliente();
 //            new Thread(r).start();
+
+
 
             while (true) {
                 newServer = true;
