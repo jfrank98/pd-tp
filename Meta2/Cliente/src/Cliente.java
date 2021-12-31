@@ -106,7 +106,11 @@ public class Cliente implements Runnable {
 
             //Cria socket dedicado a notificações
             ServerSocket notificationsSocket = new ServerSocket(0);
-            new NotificationsThread(notificationsSocket).start();
+
+            //Inicia thread dedicada à receção de notificações
+            NotificationsThread t = new NotificationsThread(notificationsSocket);
+            t.start();
+
             ClientData clientData = new ClientData(serverAddress, serverPort, socket.getLocalAddress(), socket.getLocalPort());
             clientData.setClientNotifSocketAddressPort(notificationsSocket.getInetAddress(), notificationsSocket.getLocalPort());
             request.addConnectedClient(clientData);
@@ -315,6 +319,8 @@ public class Cliente implements Runnable {
                                     request = (Request) oinS.readObject();
 
                                     inChat = true;
+                                    t.setInChat(true);
+                                    t.setCurrentContact(request.getContact());
                                     boolean enteredChat = true;
                                     String fileName = null;
 
@@ -357,6 +363,7 @@ public class Cliente implements Runnable {
                                         }
                                         else if (msg.equalsIgnoreCase("!sair")) {
                                             inChat = false;
+                                            t.setInChat(false);
                                             break;
                                         }
                                         else {

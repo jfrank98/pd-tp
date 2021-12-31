@@ -196,6 +196,8 @@ public class GRDS implements Runnable{
 
                     System.out.println("sizeallclients " + allClients.size());
 
+                    req.getConnectedClients().clear();
+
                     for (ClientData cli : allClients) {
                         req.addConnectedClient(cli);
                     }

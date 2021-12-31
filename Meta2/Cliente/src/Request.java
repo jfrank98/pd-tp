@@ -40,6 +40,15 @@ public class Request implements Serializable {
     private String notificationMessage;
     private InetAddress notificationSocketAddress;
     private int notificationSocketPort;
+    private String notificationType;
+
+    public String getNotificationType() {
+        return notificationType;
+    }
+
+    public void setNotificationType(String notificationType) {
+        this.notificationType = notificationType;
+    }
 
     public static final long serialVersionUID = 1L;
 

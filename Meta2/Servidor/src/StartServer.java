@@ -26,9 +26,15 @@ public class StartServer implements Runnable {
     private static ClientData client;
     private static boolean notification = false;
     private static String notificationMessage;
+    private static String notificationType;
+    private static String username;
 
     public StartServer() {
 
+    }
+
+    public void setNotificationType(String notificationType) {
+        StartServer.notificationType = notificationType;
     }
 
     public boolean isNewFile() { return newFile; }
@@ -197,8 +203,10 @@ public class StartServer implements Runnable {
                     setNewFile(false);
                 }
                 else if (isNotification()) {
+                    request.setUsername(username);
                     request.setUserToNotify(client);
                     request.setNotificationMessage(notificationMessage);
+                    request.setNotificationType(notificationType);
                     request.setMessage("SEND_NOTIFICATION");
                     setNotification(false);
                 }
@@ -225,8 +233,9 @@ public class StartServer implements Runnable {
                     System.out.println("SAFOMIFGDSOG " + request.getClientsToNotify().size());
                     System.out.println("ADSSADF " + request.getConnectedClients().size());
                     List<ClientData> toRemove = new ArrayList<>();
-                    for (ClientData cli : request.getClientsToNotify()) {
-                        for (ClientData clie : request.getConnectedClients()) {
+
+                    for (ClientData clie : request.getConnectedClients()) {
+                        for (ClientData cli : request.getClientsToNotify()) {
                             System.out.println("asdadasdasd cli: " + cli.getPort() + " client: " + clie.getPort());
                             if ((clie.getServerAddress().toString().equals(cli.getServerAddress().toString()) && clie.getPort() == cli.getPort())) {
                                 new SendNotification(request, clie).start();
@@ -299,5 +308,9 @@ public class StartServer implements Runnable {
 
     public void setNotificationMessage(String test_notification) {
         notificationMessage = test_notification;
+    }
+
+    public void setUsername(String username) {
+        StartServer.username = username;
     }
 }

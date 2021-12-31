@@ -6,7 +6,8 @@ import java.net.Socket;
 
 public class NotificationsThread extends Thread{
     private ServerSocket socket;
-
+    private boolean inChat = false;
+    private String currentContact = "";
     public NotificationsThread(ServerSocket notificationsSocket) {
         socket = notificationsSocket;
     }
@@ -21,10 +22,24 @@ public class NotificationsThread extends Thread{
 
                 Request req = (Request) in.readObject();
 
-                System.out.println("\n" + req.getNotificationMessage());
+                String type = req.getNotificationType();
+
+                if (type.equalsIgnoreCase("MESSAGE")) {
+                    if (inChat && req.getUsername().equalsIgnoreCase(currentContact)) {
+                        System.out.println("\n" + req.getNotificationMessage());
+                    } else {
+                        System.out.println("\nRecebeu uma nova mensagem de " + req.getUsername());
+                    }
+                } else if (type.equalsIgnoreCase("FILE")){
+                    System.out.println("\nNovo ficheiro disponibilizdo por " + req.getContact());
+                }
             } catch (IOException | ClassNotFoundException e) {
                 e.printStackTrace();
             }
         }while(true);
     }
+
+    public void setInChat(boolean a) { inChat = a; }
+
+    public void setCurrentContact(String a) { currentContact = a; }
 }

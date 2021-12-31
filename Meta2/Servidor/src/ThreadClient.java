@@ -279,11 +279,13 @@ public class ThreadClient extends Thread{
                             f = getNewFileAffectedUsers(req.getContact(), false);
                             f.setName(req.getF().getName());
                             startServer.setFile(f);
+                            startServer.setNotificationType("FILE");
                         }
                         else {
                             req.setMessage(createMessage(req.getID(), req.getMessageContent(), getIDFromDB(req.getContact()), req.isSendFile(), req.getF()));
                             startServer.addUserToNotify(getUserAffectedByNotification(req.getContact()));
-                            startServer.setNotificationMessage("TEST NOTIFICATION");
+                            startServer.setNotificationType("MESSAGE");
+                            startServer.setUsername(req.getUsername());
                             startServer.setNotification(true);
                         }
                     }
@@ -392,8 +394,10 @@ public class ThreadClient extends Thread{
                 return ans;
             }
 
+            String msg = getUsernameByID(id) + ": " + message;
+
             PreparedStatement ps = conn.prepareStatement("INSERT INTO Message (content, timestamp, User_user_id) VALUES (?, ?, ?);", Statement.RETURN_GENERATED_KEYS);
-            ps.setString(1, getUsernameByID(id) + ": " + message);
+            ps.setString(1, msg);
 
             Timestamp ts = Timestamp.from(Instant.now());
             ps.setTimestamp(2, ts);
@@ -422,6 +426,8 @@ public class ThreadClient extends Thread{
             ps2.setInt(3, id);
 
             ps2.executeUpdate();
+
+            startServer.setNotificationMessage("\n" + "(" + ts + ") " + msg);
 
             ans = "SUCCESS";
         } catch (SQLException throwables) {
