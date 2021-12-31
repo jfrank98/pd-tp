@@ -29,10 +29,10 @@ public class ReceiveFileReplica implements Runnable{
         byte [] buffer = new byte[MAX_SIZE];
         FileOutputStream localFileOutputStream;
 
-        localDirectory = new File(("." + File.separator + "DownloadsReplica").trim());
+        localDirectory = new File(("." + File.separator + "DownloadsChat").trim());
 
         if(!localDirectory.exists()){
-            Path path = Paths.get(".\\DownloadsReplica");
+            Path path = Paths.get(".\\DownloadsChat");
             try {
                 Files.createDirectories(path);
             } catch (IOException e) {

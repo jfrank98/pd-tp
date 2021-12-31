@@ -180,6 +180,7 @@ public class StartServer implements Runnable {
     }
 
     public void run() {
+        boolean sendFileNotif = false;
         int attempt = 0;
         int cycle = 0;
         String req;
@@ -196,13 +197,22 @@ public class StartServer implements Runnable {
                     request.setFileSocketPort(fileReplicaSocket.getLocalPort());
 
                     request.setMessage("NEW_FILE");
+                    System.out.println("file " + file.getUniqueName());
                     request.setF(file);
 
                     Runnable sendFileReplica = new SendFileReplica(request.getF().getName(), fileReplicaSocket, request.getF().getAffectedClients());
                     new Thread(sendFileReplica).start();
+                    sendFileNotif = true;
+                    notification = true;
                     setNewFile(false);
                 }
                 else if (isNotification()) {
+                    if (sendFileNotif){
+                        request.setF(file);
+                        System.out.println("file " + file.getUniqueName());
+                        System.out.println("ficheiroL " + request.getF().getUniqueName());
+                        sendFileNotif = false;
+                    }
                     request.setUsername(username);
                     request.setUserToNotify(client);
                     request.setNotificationMessage(notificationMessage);
@@ -229,20 +239,20 @@ public class StartServer implements Runnable {
 
                     File fileInfo = request.getF();
 
+                    System.out.println("nome file: " + fileInfo.getUniqueName());
+
                     Socket receiveFileSocket = new Socket(request.getFileSocketAddress(), request.getFileSocketPort());
 
-                    Runnable r = new ReceiveFileReplica(fileInfo.getName(), receiveFileSocket);
+                    Runnable r = new ReceiveFileReplica(fileInfo.getUniqueName(), receiveFileSocket);
                     new Thread(r).start();
                 }
                 else if (request.getMessage().equalsIgnoreCase("NEW_NOTIFICATION")) {
-                    //System.out.println("iIN");
-                    //System.out.println("SAFOMIFGDSOG " + request.getClientsToNotify().size());
-                    //System.out.println("ADSSADF " + request.getConnectedClients().size());
+
                     List<ClientData> toRemove = new ArrayList<>();
 
                     for (ClientData clie : request.getConnectedClients()) {
                         for (ClientData cli : request.getClientsToNotify()) {
-                            System.out.println("cli: " + cli.getPort() + " client: " + clie.getPort());
+
                             if ((clie.getServerAddress().toString().equals(cli.getServerAddress().toString()) && clie.getPort() == cli.getPort())) {
                                 new SendNotification(request, clie).start();
                                 toRemove.add(cli);
@@ -250,6 +260,9 @@ public class StartServer implements Runnable {
                         }
                     }
                     request.getClientsToNotify().removeAll(toRemove);
+                }
+                else if (request.getMessage().equalsIgnoreCase("CONTINUE")) {
+                    request.getClientsToNotify().clear();
                 }
 
                 attempt = 0;

@@ -331,25 +331,28 @@ public class ThreadClient extends Thread{
                     }
                     else if (req.getMessage().equalsIgnoreCase("SEND_MESSAGE")) {
 
+                        startServer.setUsername(req.getUsername());
+
                         if (req.isSendFile()){
                             uploaded = false;
-
                             ServerSocket fileSocket = new ServerSocket(0);
                             req.setFileSocketPort(fileSocket.getLocalPort());
                             req.setFileSocketAddress(fileSocket.getInetAddress());
                             Runnable r = new ReceiveFile(req.getF().getName(), fileSocket, this);
                             new Thread(r).start();
                             File f;
+                            req.setMessage(createMessage(req.getID(), req.getMessageContent(), getIDFromDB(req.getContact()), req.isSendFile(), req.getF()));
                             f = getNewFileAffectedUsers(req.getContact(), false);
                             f.setName(req.getF().getName());
+                            f.setUniqueName(req.getF().getUniqueName());
                             startServer.setFile(f);
                             startServer.setNotificationType("FILE");
+
                         }
                         else {
                             req.setMessage(createMessage(req.getID(), req.getMessageContent(), getIDFromDB(req.getContact()), req.isSendFile(), req.getF()));
                             startServer.addUserToNotify(getUserAffectedByNotification(req.getContact()));
                             startServer.setNotificationType("MESSAGE");
-                            startServer.setUsername(req.getUsername());
                             startServer.setNotification(true);
                         }
                     }
@@ -492,6 +495,7 @@ public class ThreadClient extends Thread{
 
             String msg = getUsernameByID(id) + ": " + message;
 
+
             PreparedStatement ps = conn.prepareStatement("INSERT INTO Message (content, timestamp, User_user_id) VALUES (?, ?, ?);", Statement.RETURN_GENERATED_KEYS);
             ps.setString(1, msg);
 
@@ -505,7 +509,8 @@ public class ThreadClient extends Thread{
             int mid = 0;
             if (rs2.next()) {
                 mid = rs2.getInt(1);
-                f.setUniqueName(f.getName() + "_" + mid);
+                if (isFile)
+                    f.setUniqueName(mid + "_" + f.getName());
             }
 
             if (isFile) {
@@ -513,6 +518,7 @@ public class ThreadClient extends Thread{
                 ps2.setString(1, f.getUniqueName());
                 ps2.setInt(2, mid);
                 ps2.executeUpdate();
+                msg = f.getUniqueName();
             }
 
             PreparedStatement ps2 = conn.prepareStatement("INSERT INTO MessageRecipient (recipient_id, message_id, sender_id) VALUES (?, ?, ?);");

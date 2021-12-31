@@ -10,7 +10,6 @@ public class GRDS implements Runnable{
     private static String SERVER_CHECK = "SERVER_ACTIVE";
     private static final String CLIENT_REQUEST = "GET_ADDR_PORT_TCP";
     private static List<ServerData> servers = new ArrayList<>();
-    private static List<ClientData> clients = new ArrayList<>();
     private static List<ClientData> allClients = new ArrayList<>();
     private static int server_index = 0;
 
@@ -31,6 +30,7 @@ public class GRDS implements Runnable{
         Request req, notifNewFile = null, notificationRequest = null;
         List<ServerData> toNotifyNewFileServers = new ArrayList<>();
         List<ServerData> newNotificationServers = new ArrayList<>();
+        List<ClientData> clientsToNotify = new ArrayList<>();
 
 
         //Verifica se recebeu os argumentos necessários: porto de escuta
@@ -134,6 +134,7 @@ public class GRDS implements Runnable{
                     if (notified){
                         notificationRequest.setMessage("NEW_NOTIFICATION");
                         newNotificationServers.remove(removeFromNewNotifList);
+                        System.out.println("asfmsfgdim " + notificationRequest.getClientsToNotify().size());
                         data = serialize(notificationRequest);
                     }
                     else if (notifiednewfile){
@@ -213,7 +214,7 @@ public class GRDS implements Runnable{
                         System.out.println("cli notif: " + cli.getPort());
                         for (ServerData s : newNotificationServers) {
                             System.out.println("packet: " + s.getListeningPort() + " tonotify: " + cli.getPort());
-                            if (cli.getPort() == s.getListeningPort()) {
+                            if (cli.getServerAddress() == s.getServerAddress() && cli.getPort() == s.getListeningPort()) {
                                 added = true;
                                 break;
                             }

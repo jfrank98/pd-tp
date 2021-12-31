@@ -31,7 +31,7 @@ public class NotificationsThread extends Thread{
                         System.out.println("\nRecebeu uma nova mensagem de " + req.getUsername());
                     }
                 } else if (type.equalsIgnoreCase("FILE")){
-                    System.out.println("\nNovo ficheiro disponibilizdo por " + req.getContact());
+                    System.out.print("\nNovo ficheiro \"" + req.getF().getUniqueName() + "\" disponibilizdo por " + req.getUsername());
                 }
             } catch (IOException | ClassNotFoundException e) {
                 e.printStackTrace();
