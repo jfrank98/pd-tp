@@ -1,16 +1,13 @@
-import com.mysql.cj.conf.ConnectionUrlParser;
-
 import java.io.*;
 import java.net.*;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class StartServer implements Runnable {
     private static final int MAX_SIZE = 4096;
     private static String ADDR_PORT_REQUEST = "SERVER_GET_ADDR_PORT_TCP";
-    private static DatagramSocket s;
-    private static DatagramPacket p;
     private static InetAddress AddrGRDS = null;
     private static int PortGRDS = 0;
     private static final String JDBC_DRIVER = "com.mysql.cj.jdbc.Driver";
@@ -19,35 +16,41 @@ public class StartServer implements Runnable {
     private static final String PASS = "root";
     private static ArrayList<Socket> listClientSockets = new ArrayList<>();
     private static ServerSocket listeningSocket;
-    private static String command = "";
-    private static boolean grdsClosed = false;
-    private static DatagramSocket SocketGRDS = null;
+    private static MulticastSocket SocketGRDS = null;
     private static DatagramPacket packet = null;
     private static ArrayList<ServerData> serverList = new ArrayList<>();
     private static boolean newFile = false;
     private static File file = new File();
     private Request request = new Request();
-    public StartServer(StartServer startServer) {
-
-    }
+    private static ArrayList<ClientData> clientsToNotify = new ArrayList<>();
+    private static ClientData client;
+    private static boolean notification = false;
+    private static String notificationMessage;
+    private static String notificationType;
+    private static String username;
 
     public StartServer() {
 
+    }
+
+    public void setNotificationType(String notificationType) {
+        StartServer.notificationType = notificationType;
     }
 
     public boolean isNewFile() { return newFile; }
 
     public void setNewFile(boolean newFile) { StartServer.newFile = newFile; }
 
+    public boolean isNotification() { return notification; }
+
     public void startServer(String [] args) {
         boolean connected = false;
         Statement stmt;
         Connection conn;
 
-        Socket nextClient = null;
-        ObjectOutputStream oout;
-        ObjectInputStream oin;
-        String receivedMsg;
+        Socket nextClient;
+        NetworkInterface nif;
+
         int attempt = 0;
 
         //Verifica se receber os argumentos necessários: IP e do SGBD e opcionamente o IP e porto de escuta do GRDS
@@ -69,21 +72,31 @@ public class StartServer implements Runnable {
 
         try {
             //Cria um DatagramSocket para comunicar com o GRDS
-            SocketGRDS = new DatagramSocket();
+            SocketGRDS = new MulticastSocket();
             SocketGRDS.setSoTimeout(10000);
         } catch(SocketException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        try {
+            if (args.length == 1) {
+                AddrGRDS = InetAddress.getByName("230.30.30.30");
+                PortGRDS = 3030;
+            } else {
+                AddrGRDS = InetAddress.getByName(args[1]);
+                PortGRDS = Integer.parseInt(args[2]);
+            }
+
+            SocketGRDS.joinGroup(AddrGRDS);
+        } catch (IOException e) {
             e.printStackTrace();
         }
 
         while (attempt != 3 && !connected) {
             try {
-                if (args.length == 1) {
-                    AddrGRDS = InetAddress.getByName("230.30.30.30");
-                    PortGRDS = 3030;
-                } else {
-                    AddrGRDS = InetAddress.getByName(args[1]);
-                    PortGRDS = Integer.parseInt(args[2]);
-                }
+
+
                 request.setMessage(ADDR_PORT_REQUEST);
                 byte [] data = serialize(request);
                 //Cria um DatagramPacket e envia-o ao GRDS através do DatagramSocket criado anteriormente
@@ -184,28 +197,19 @@ public class StartServer implements Runnable {
 
                     request.setMessage("NEW_FILE");
                     request.setF(file);
-                    System.out.println("reqwgwrg " + request.getF().getAffectedClients().get(0).getPort());
 
-                    List<ServerData> servers = new ArrayList<>();
-
-                    boolean added = false;
-
-                    for (ClientData cli : request.getF().getAffectedClients()) {
-                        for (ServerData s : servers) {
-                            if (cli.getPort() == s.getListeningPort()) {
-                                added = true;
-                                break;
-                            }
-                        }
-                        if (!added)
-                            servers.add(new ServerData(cli.getAddr(), cli.getPort()));
-                        added = false;
-                    }
-
-                    Runnable sendFileReplica = new SendFileReplica(request.getF().getName(), fileReplicaSocket, servers.size());
+                    Runnable sendFileReplica = new SendFileReplica(request.getF().getName(), fileReplicaSocket, request.getF().getAffectedClients());
                     new Thread(sendFileReplica).start();
+                    setNewFile(false);
                 }
-                setNewFile(false);
+                else if (isNotification()) {
+                    request.setUsername(username);
+                    request.setUserToNotify(client);
+                    request.setNotificationMessage(notificationMessage);
+                    request.setNotificationType(notificationType);
+                    request.setMessage("SEND_NOTIFICATION");
+                    setNotification(false);
+                }
 
                 data = serialize(request);
                 packet = new DatagramPacket(data, data.length, AddrGRDS, PortGRDS);
@@ -216,14 +220,30 @@ public class StartServer implements Runnable {
 
                 request = (Request) deserialize(packet.getData());
                 if (request.getMessage().equalsIgnoreCase("NOTIFICATION_NEW_FILE")){
-                    System.out.println("new file?");
+
                     File fileInfo = request.getF();
-                    System.out.println("INNN");
 
                     Socket receiveFileSocket = new Socket(request.getFileSocketAddress(), request.getFileSocketPort());
 
                     Runnable r = new ReceiveFileReplica(fileInfo.getName(), receiveFileSocket);
                     new Thread(r).start();
+                }
+                else if (request.getMessage().equalsIgnoreCase("NEW_NOTIFICATION")) {
+                    System.out.println("iIN");
+                    System.out.println("SAFOMIFGDSOG " + request.getClientsToNotify().size());
+                    System.out.println("ADSSADF " + request.getConnectedClients().size());
+                    List<ClientData> toRemove = new ArrayList<>();
+
+                    for (ClientData clie : request.getConnectedClients()) {
+                        for (ClientData cli : request.getClientsToNotify()) {
+                            System.out.println("asdadasdasd cli: " + cli.getPort() + " client: " + clie.getPort());
+                            if ((clie.getServerAddress().toString().equals(cli.getServerAddress().toString()) && clie.getPort() == cli.getPort())) {
+                                new SendNotification(request, clie).start();
+                                toRemove.add(cli);
+                            }
+                        }
+                    }
+                    request.getClientsToNotify().removeAll(toRemove);
                 }
 
                 attempt = 0;
@@ -251,6 +271,10 @@ public class StartServer implements Runnable {
         }
     }
 
+    public void setNotification(boolean notification) {
+        this.notification = notification;
+    }
+
     public static byte[] serialize(Object obj) throws IOException {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         ObjectOutputStream os = new ObjectOutputStream(out);
@@ -275,5 +299,18 @@ public class StartServer implements Runnable {
     public String getServerSocketAddress() {
         System.out.println("aaaaaaaaaaa " + listeningSocket.getLocalSocketAddress().toString());
         return listeningSocket.getLocalSocketAddress().toString();
+    }
+
+    public void addUserToNotify(ClientData userAffectedByNotification) {
+        client = userAffectedByNotification;
+        clientsToNotify.add(userAffectedByNotification);
+    }
+
+    public void setNotificationMessage(String test_notification) {
+        notificationMessage = test_notification;
+    }
+
+    public void setUsername(String username) {
+        StartServer.username = username;
     }
 }

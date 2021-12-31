@@ -7,6 +7,7 @@ import java.sql.*;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.List;
 
 public class ThreadClient extends Thread{
 
@@ -72,9 +73,10 @@ public class ThreadClient extends Thread{
 
             try {
                 try {
+                    //socket.setSoTimeout(10000);
                     //Lê o pedido do cliente
                     req = (Request) oin.readObject();
-                }catch(EOFException | SocketException e) {
+                }catch(EOFException | SocketException | SocketTimeoutException e) {
                     System.out.println("\nO cliente da thread com ID " + Thread.currentThread().getId() + " saiu.");
 
                     if (req.getID() != -1) {
@@ -83,6 +85,8 @@ public class ThreadClient extends Thread{
                                 serverData.removeClient(req.getUsername());
                             }
                         }
+                        /*req.setMessage("Esteve demasiado tempo inativo. A terminar sessão...");
+                        out.writeUnshared(req);*/
                         logout(req.getID());
                     }
                     socket.close();
@@ -102,14 +106,14 @@ public class ThreadClient extends Thread{
                         req.setMessage("\nLigação com o servidor estabelecida.");
                     }
                     else if (req.getMessage().equalsIgnoreCase("CREATE_ACCOUNT")){
-                        req.setMessage(createAccount(req.getUsername(), req.getPassword(), req.getName(), startServer.getServerSocketAddress(), startServer.getServerSocketPort()));
+                        req.setMessage(createAccount(req.getUsername(), req.getPassword(), req.getName(), InetAddress.getLocalHost().getHostAddress(), startServer.getServerSocketPort()));
 
                         if(req.getMessage().equalsIgnoreCase("SUCCESS")){
                             req.setID(getIDFromDB(req.getUsername()));
                         }
                     }
                     else if (req.getMessage().equalsIgnoreCase("LOGIN")) {
-                        req.setMessage(loginUser(req.getUsername(), req.getPassword(), startServer.getServerSocketAddress(), startServer.getServerSocketPort()));
+                        req.setMessage(loginUser(req.getUsername(), req.getPassword(), InetAddress.getLocalHost().getHostAddress(), startServer.getServerSocketPort()));
 
                         if(req.getMessage().equalsIgnoreCase("SUCCESS")){
                             req.setID(getIDFromDB(req.getUsername()));
@@ -146,6 +150,7 @@ public class ThreadClient extends Thread{
                     }
                     else if (req.getMessage().equalsIgnoreCase("ADD_CONTACT")){
                         req.setMessage(addContact(req.getContact(), req.getID(), false));
+
                     }
                     else if (req.getMessage().equalsIgnoreCase("REMOVE_CONTACT")){
                         req.setMessage(removeContact(req.getContact(), req.getID()));
@@ -333,12 +338,17 @@ public class ThreadClient extends Thread{
                             Runnable r = new ReceiveFile(req.getF().getName(), fileSocket, this);
                             new Thread(r).start();
                             File f;
-                            f = getAffectedUsers(req.getID(), req.getContact(), false);
+                            f = getNewFileAffectedUsers(req.getContact(), false);
                             f.setName(req.getF().getName());
                             startServer.setFile(f);
+                            startServer.setNotificationType("FILE");
                         }
                         else {
                             req.setMessage(createMessage(req.getID(), req.getMessageContent(), getIDFromDB(req.getContact()), req.isSendFile(), req.getF()));
+                            startServer.addUserToNotify(getUserAffectedByNotification(req.getContact()));
+                            startServer.setNotificationType("MESSAGE");
+                            startServer.setUsername(req.getUsername());
+                            startServer.setNotification(true);
                         }
                     }
                     else if (req.getMessage().equalsIgnoreCase("SEND_GROUP_MESSAGE")) {
@@ -377,7 +387,57 @@ public class ThreadClient extends Thread{
 
     public void setUploaded(boolean a) { uploaded = a; }
 
-    private File getAffectedUsers(int id, String contact, boolean isGroup) {
+    private List<ClientData> getGroupAffectedByMessage(int id, int gid) {
+        String ans = "FAILURE";
+        List<ClientData> clientData = new ArrayList<>();
+        try {
+            PreparedStatement ps = conn.prepareStatement("SELECT * FROM UserInGroup WHERE group_group_id = ?");
+            ps.setInt(1, gid);
+
+            PreparedStatement ps1 = conn.prepareStatement("SELECT * FROM User WHERE NOT user_id = ?");
+            ps1.setInt(1, id);
+
+            ResultSet usersAffected = ps.executeQuery();
+            ResultSet allUsers = ps1.executeQuery();
+
+            while (allUsers.next()) {
+                while (usersAffected.next()) {
+                    if (allUsers.getInt(1) == usersAffected.getInt(3)) {
+                        ClientData client = new ClientData(InetAddress.getByName("localhost"), allUsers.getInt(6), InetAddress.getByName(allUsers.getString(8)), Integer.parseInt(allUsers.getString(9)));
+                        clientData.add(client);
+                    }
+                }
+            }
+        } catch (SQLException | UnknownHostException throwables) {
+            throwables.printStackTrace();
+        }
+
+        return clientData;
+    }
+
+    private ClientData getUserAffectedByNotification(String contact) {
+        ClientData clientData = new ClientData();
+        try {
+            PreparedStatement ps = conn.prepareStatement("SELECT * FROM User WHERE user_id = ?");
+            ps.setInt(1, getIDFromDB(contact));
+
+            ResultSet rs = ps.executeQuery();
+            rs.next();
+
+             clientData = new ClientData(
+                    InetAddress.getByName(rs.getString(7)),
+                    rs.getInt(6),
+                    InetAddress.getByName(rs.getString(8)),
+                    Integer.parseInt(rs.getString(9)));
+            System.out.println(clientData.getPort());
+        } catch (SQLException | UnknownHostException throwables) {
+            throwables.printStackTrace();
+        }
+
+        return clientData;
+    }
+
+    private File getNewFileAffectedUsers(String contact, boolean isGroup) {
         File f = new File();
         try {
             if (!isGroup) {
@@ -386,7 +446,7 @@ public class ThreadClient extends Thread{
 
                 ResultSet rs = ps.executeQuery();
                 rs.next();
-                f.addAffectedClients(new ClientData(InetAddress.getByName("localhost"), rs.getInt(6)));
+                f.addAffectedClients(new ClientData(InetAddress.getByName("localhost"), rs.getInt(6),  InetAddress.getByName(rs.getString(8)), Integer.parseInt(rs.getString(9))));
                 f.setLocationAddress(socket.getLocalAddress());
                 f.setLocationPort(socket.getLocalPort());
             }
@@ -415,8 +475,10 @@ public class ThreadClient extends Thread{
                 return ans;
             }
 
+            String msg = getUsernameByID(id) + ": " + message;
+
             PreparedStatement ps = conn.prepareStatement("INSERT INTO Message (content, timestamp, User_user_id) VALUES (?, ?, ?);", Statement.RETURN_GENERATED_KEYS);
-            ps.setString(1, getUsernameByID(id) + ": " + message);
+            ps.setString(1, msg);
 
             Timestamp ts = Timestamp.from(Instant.now());
             ps.setTimestamp(2, ts);
@@ -444,6 +506,8 @@ public class ThreadClient extends Thread{
             ps2.setInt(3, id);
 
             ps2.executeUpdate();
+
+            startServer.setNotificationMessage("\n" + "(" + ts + ") " + msg);
 
             ans = "SUCCESS";
         } catch (SQLException throwables) {
@@ -556,13 +620,18 @@ public class ThreadClient extends Thread{
         String ans = null;
 
         try {
-            PreparedStatement ps = conn.prepareStatement("INSERT INTO User (password, username, name, session, server_port, server_address) VALUES (?, ?, ?, ?, ?, ?)");
+
+            PreparedStatement ps = conn.prepareStatement("INSERT INTO User (password, username, name, session, server_address, server_port, client_address, client_port) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+
             ps.setString(1, p);
             ps.setString(2, u);
             ps.setString(3, n);
             ps.setBoolean(4, true);
-            ps.setInt(5, port);
-            ps.setString(6, addr.replace("/", ""));
+
+            ps.setString(5, addr.replace("/", ""));
+            ps.setInt(6, port);
+            ps.setString(7, socket.getInetAddress().toString().replace("/", ""));
+            ps.setString(8, Integer.toString(socket.getPort()));
 
             ResultSet r = stmt.executeQuery(COUNT_USERS_QUERY);
             r.next();

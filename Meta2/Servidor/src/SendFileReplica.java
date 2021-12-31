@@ -2,17 +2,18 @@ import java.io.*;
 import java.io.File;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.ArrayList;
+import java.util.List;
 
 public class SendFileReplica implements Runnable {
     private static final int MAX_SIZE = 4096;
     private String fileName;
     private ServerSocket serverSocket;
-    private int affectedClientsSize;
-
-    public SendFileReplica(String fileName, ServerSocket socket, int affectedClientsSize) {
+    private ArrayList<ClientData> clientData;
+    public SendFileReplica(String fileName, ServerSocket socket, ArrayList<ClientData> clientData) {
         this.fileName = fileName;
         serverSocket = socket;
-        this.affectedClientsSize = affectedClientsSize;
+        this.clientData = clientData;
     }
 
     @Override
@@ -26,7 +27,6 @@ public class SendFileReplica implements Runnable {
 
         localDirectory = new File(("." + File.separator + "DownloadsChat").trim());
 
-        System.out.println("owgmwoignjwe " + affectedClientsSize);
         if (!localDirectory.exists()) {
             System.out.println("A directoria " + localDirectory + " nao existe!");
             return;
@@ -42,6 +42,22 @@ public class SendFileReplica implements Runnable {
             return;
         }
         int i = 0;
+
+        List<ServerData> servers = new ArrayList<>();
+
+        boolean added = false;
+
+        for (ClientData cli : clientData) {
+            for (ServerData s : servers) {
+                if (cli.getPort() == s.getListeningPort()) {
+                    added = true;
+                    break;
+                }
+            }
+            if (!added)
+                servers.add(new ServerData(cli.getServerAddress(), cli.getPort()));
+            added = false;
+        }
 
         do {
             try {
@@ -89,7 +105,7 @@ public class SendFileReplica implements Runnable {
                     System.out.println("Ocorreu a excepcao {" + e + "} ao tentar criar o ficheiro " + CanonicalFilePath + "!");
                 }
             }
-        } while (i < affectedClientsSize);
+        } while (i < servers.size());
     }
 
 }
