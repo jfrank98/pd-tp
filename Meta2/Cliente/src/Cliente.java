@@ -681,8 +681,9 @@ public class Cliente implements Runnable {
                                         request.getAcceptRejectIgnoreRequests().clear();
 
                                         System.out.println("\nPedidos de adesão pendentes:");
-                                        for (String n : request.getPendingJoinRequests()) {
-                                            System.out.println("-" + n);
+
+                                        for(int i = 0; i < request.getPendingJoinRequests().size(); i++){
+                                            System.out.println("-" + request.getPendingJoinRequests().get(i) + " (" + request.getPendingJoinRequestsGroupId().get(i) + ")");
                                         }
 
                                         System.out.println("\n1 - Aceitar pedido");
@@ -699,6 +700,7 @@ public class Cliente implements Runnable {
                                         if (option == 1) {
                                             request.setMessage("ACCEPT_GROUP_REQUEST");
                                             request.setContact(getNewUsername());
+                                            //enviar ao servidor o id do grupo no qual o utilizador quer entrar
                                         } else if (option == 2) {
                                             request.setMessage("REJECT_GROUP_REQUEST");
                                             request.setContact(getNewUsername());

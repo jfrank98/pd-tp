@@ -30,7 +30,7 @@ public class Request implements Serializable {
     private ArrayList<String> listaMembros = new ArrayList<>();
     private ArrayList<String> listaUtilizadores = new ArrayList<>();
     private ArrayList<String> pendingJoinRequests = new ArrayList<>();
-    private ArrayList<Integer> pendingJoinRequestsGroupId = new ArrayList<>();
+    private ArrayList<String> pendingJoinRequestsGroupId = new ArrayList<>();
     private ArrayList<String> pendingContactRequests = new ArrayList<>();
     private ArrayList<Integer> acceptRejectIgnoreRequests = new ArrayList<>();
     private int port = 0;
@@ -204,7 +204,7 @@ public class Request implements Serializable {
         this.password = password;
     }
 
-    public ArrayList<Integer> getPendingJoinRequestsGroupId() {
+    public ArrayList<String> getPendingJoinRequestsGroupId() {
         return pendingJoinRequestsGroupId;
     }
 
@@ -278,7 +278,7 @@ public class Request implements Serializable {
         return pendingContactRequests;
     }
 
-    public void setPendingJoinRequestsGroupId(int a) {
+    public void setPendingJoinRequestsGroupId(String a) {
         pendingJoinRequestsGroupId.add(a);
     }
 

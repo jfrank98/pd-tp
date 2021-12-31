@@ -32,7 +32,7 @@ public class ThreadClient extends Thread{
     private ArrayList<String> listaU = new ArrayList<>();
     private ArrayList<String> pendingJoinRequests = new ArrayList<>();
     private ArrayList<String> pendingContactRequests = new ArrayList<>();
-    private ArrayList<Integer> pendingJoinRequestsGroupId = new ArrayList<>();
+    private ArrayList<String> pendingJoinRequestsGroupId = new ArrayList<>();
     private ArrayList<String> messageHistory = new ArrayList<>();
     private ArrayList<String> groupHistory = new ArrayList<>();
     private int contactID;
@@ -253,7 +253,7 @@ public class ThreadClient extends Thread{
                                 req.setGroupOwner(true);
                                 for (String s : pendingJoinRequests)
                                     req.setPendingJoinRequests(s);
-                                for (Integer a : pendingJoinRequestsGroupId)
+                                for (String a : pendingJoinRequestsGroupId)
                                     req.setPendingJoinRequestsGroupId(a);
                             }
                         }
@@ -793,6 +793,25 @@ public class ThreadClient extends Thread{
         return username;
     }
 
+    private String getGroupNameByID(int id){
+        String groupName = null;
+
+        try {
+            Statement stmt2 = conn.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
+            ResultSet rs = stmt2.executeQuery("SELECT * FROM `Group` WHERE group_id = " + id);
+
+            while(rs.next()){
+                if (rs.getInt(1) == id){
+                    groupName = rs.getString(3);
+                }
+            }
+        } catch (SQLException throwables) {
+            throwables.printStackTrace();
+        }
+
+        return groupName;
+    }
+
     private String listContacts(int id){
         String ans = "FAILURE";
         String contacto;
@@ -1202,7 +1221,8 @@ public class ThreadClient extends Thread{
                     if (id == rs2.getInt(2)) {
                         if (!rs2.getBoolean(4)){
                             pendingJoinRequests.add(getUsernameByID(rs2.getInt(3)));
-                            pendingJoinRequestsGroupId.add(rs2.getInt(1));
+                            pendingJoinRequestsGroupId.add(getGroupNameByID(rs2.getInt(1)));
+
                             ans = "SUCCESS";
                         }
                     }
