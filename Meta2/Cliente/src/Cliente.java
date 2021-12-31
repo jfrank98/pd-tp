@@ -325,7 +325,7 @@ public class Cliente implements Runnable {
                                     t.setCurrentContact(request.getContact());
                                     boolean enteredChat = true;
                                     String fileName = null;
-
+                                    String msg;
                                     do {
                                         if (enteredChat) {
                                             System.out.println("\n\nNota: utilize os comandos !sendfile e !getfile para enviar e receber ficheiros e !sair para sair da conversa privada.\n");
@@ -337,14 +337,15 @@ public class Cliente implements Runnable {
                                             enteredChat = false;
                                             //Runnable r = new Cliente();
                                             //new Thread(r).start();
+                                            sc.nextLine();
                                         }
                                         //Thread.sleep(500);
 
-                                        //não aceita numeros !!
                                         System.out.print(" >> ");
                                         while (!sc.hasNextLine());
 
-                                        String msg = sc.nextLine();
+                                        msg = sc.nextLine();
+
 
                                         if (msg.equalsIgnoreCase("!sendfile")) {
                                             request.setSendFile(true);
@@ -366,7 +367,7 @@ public class Cliente implements Runnable {
                                             t.setInChat(false);
                                             break;
                                         } else {
-                                            request.setMessageContent(sc.nextLine());
+                                            request.setMessageContent(msg);
                                         }
                                         request.setMessage("SEND_MESSAGE");
 
