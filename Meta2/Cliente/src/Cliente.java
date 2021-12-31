@@ -477,10 +477,11 @@ public class Cliente implements Runnable {
                                             enteredChat = false;
                                             Runnable r = new Cliente();
                                             new Thread(r).start();
-                                        }
-                                        Thread.sleep(500);
 
-                                        //não aceita numeros !!
+                                            sc.nextLine();
+                                        }
+                                        //Thread.sleep(500);
+
                                         System.out.print(" >> ");
                                         while (!sc.hasNextLine()) ;
                                         String msg = sc.nextLine();
@@ -504,7 +505,7 @@ public class Cliente implements Runnable {
                                             inChat = false;
                                             break;
                                         } else {
-                                            request.setMessageContent(sc.nextLine());
+                                            request.setMessageContent(msg);
                                             request.setSendFile(false);
                                             request.setReceiveFile(false);
                                         }
@@ -968,8 +969,6 @@ public class Cliente implements Runnable {
         } catch (SocketTimeoutException e) {
 
         } catch (IOException | ClassNotFoundException e) {
-            e.printStackTrace();
-        } catch (InterruptedException e) {
             e.printStackTrace();
         }
     }

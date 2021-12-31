@@ -208,6 +208,12 @@ public class StartServer implements Runnable {
                     request.setNotificationMessage(notificationMessage);
                     request.setNotificationType(notificationType);
                     request.setMessage("SEND_NOTIFICATION");
+
+
+//                    for(ClientData client : clientsToNotify) {
+//                        request.setUserToNotify(client);
+//                    }
+
                     setNotification(false);
                 }
 
@@ -229,14 +235,14 @@ public class StartServer implements Runnable {
                     new Thread(r).start();
                 }
                 else if (request.getMessage().equalsIgnoreCase("NEW_NOTIFICATION")) {
-                    System.out.println("iIN");
-                    System.out.println("SAFOMIFGDSOG " + request.getClientsToNotify().size());
-                    System.out.println("ADSSADF " + request.getConnectedClients().size());
+                    //System.out.println("iIN");
+                    //System.out.println("SAFOMIFGDSOG " + request.getClientsToNotify().size());
+                    //System.out.println("ADSSADF " + request.getConnectedClients().size());
                     List<ClientData> toRemove = new ArrayList<>();
 
                     for (ClientData clie : request.getConnectedClients()) {
                         for (ClientData cli : request.getClientsToNotify()) {
-                            System.out.println("asdadasdasd cli: " + cli.getPort() + " client: " + clie.getPort());
+                            System.out.println("cli: " + cli.getPort() + " client: " + clie.getPort());
                             if ((clie.getServerAddress().toString().equals(cli.getServerAddress().toString()) && clie.getPort() == cli.getPort())) {
                                 new SendNotification(request, clie).start();
                                 toRemove.add(cli);

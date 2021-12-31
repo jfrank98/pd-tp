@@ -34,6 +34,8 @@ public class ClientData implements Serializable {
         return serverPort;
     }
 
+    public int getClientPort() { return clientPort; }
+
     public void setClientNotifSocketAddressPort(InetAddress addr, int port) {
         notifSocketAddress = addr;
         notifSocketPort = port;

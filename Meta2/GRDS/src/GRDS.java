@@ -208,7 +208,7 @@ public class GRDS implements Runnable{
                     packet.setData(data, 0, data.length);
 
                     boolean added = false;
-                    System.out.println("ok so far so good");
+                    //System.out.println("ok so far so good");
                     for (ClientData cli : req.getClientsToNotify()) {
                         System.out.println("cli notif: " + cli.getPort());
                         for (ServerData s : newNotificationServers) {

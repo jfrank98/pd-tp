@@ -1,3 +1,5 @@
+import com.mysql.cj.xdevapi.JsonParser;
+
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -368,6 +370,14 @@ public class ThreadClient extends Thread{
                         }
                         else{
                             req.setMessage(createGroupMessage(req.getID(), req.getMessageContent(), groupID, req.isSendFile(), req.getF()));
+
+
+//                            for(ClientData client : getGroupAffectedByMessage(req.getID(), groupID)){
+//                                startServer.addUserToNotify(client);
+//                            }
+//                            startServer.setNotificationType("MESSAGE");
+//                            startServer.setUsername(req.getUsername());
+//                            startServer.setNotification(true);
                         }
                     }
 
@@ -388,10 +398,9 @@ public class ThreadClient extends Thread{
     public void setUploaded(boolean a) { uploaded = a; }
 
     private List<ClientData> getGroupAffectedByMessage(int id, int gid) {
-        String ans = "FAILURE";
         List<ClientData> clientData = new ArrayList<>();
         try {
-            PreparedStatement ps = conn.prepareStatement("SELECT * FROM UserInGroup WHERE group_group_id = ?");
+            PreparedStatement ps = conn.prepareStatement("SELECT * FROM UserInGroup WHERE group_group_id = ? AND accepted = true");
             ps.setInt(1, gid);
 
             PreparedStatement ps1 = conn.prepareStatement("SELECT * FROM User WHERE NOT user_id = ?");
@@ -400,14 +409,20 @@ public class ThreadClient extends Thread{
             ResultSet usersAffected = ps.executeQuery();
             ResultSet allUsers = ps1.executeQuery();
 
+            //System.out.println("\nClientes a avisar: ");
+
             while (allUsers.next()) {
                 while (usersAffected.next()) {
                     if (allUsers.getInt(1) == usersAffected.getInt(3)) {
                         ClientData client = new ClientData(InetAddress.getByName("localhost"), allUsers.getInt(6), InetAddress.getByName(allUsers.getString(8)), Integer.parseInt(allUsers.getString(9)));
                         clientData.add(client);
+                        //System.out.println(client.getClientPort());
                     }
                 }
             }
+            System.out.println("\n");
+
+
         } catch (SQLException | UnknownHostException throwables) {
             throwables.printStackTrace();
         }
@@ -522,14 +537,17 @@ public class ThreadClient extends Thread{
 
         try {
 
+            String msg = getUsernameByID(id) + ": " + message;
+
             PreparedStatement ps = conn.prepareStatement("INSERT INTO Message (content, timestamp, User_user_id, Group_id) VALUES (?, ?, ?, ?);", Statement.RETURN_GENERATED_KEYS);
-            ps.setString(1, getUsernameByID(id) + ": " + message);
+            ps.setString(1, msg);
             Timestamp ts = Timestamp.from(Instant.now());
             ps.setTimestamp(2, ts);
             ps.setInt(3, id);
             ps.setInt(4, gID);
 
             ps.executeUpdate();
+
 
             ResultSet rs2 = ps.getGeneratedKeys();
             int mid = 0;
@@ -544,6 +562,8 @@ public class ThreadClient extends Thread{
                 ps2.setInt(2, mid);
                 ps2.executeUpdate();
             }
+
+            startServer.setNotificationMessage("\n" + "(" + ts + ") " + msg);
 
             ans = "SUCCESS";
         } catch (SQLException throwables) {
@@ -685,7 +705,6 @@ public class ThreadClient extends Thread{
                 return ans;
             }
 
-            System.out.println("address:   " + addr);
             PreparedStatement ps = conn.prepareStatement("UPDATE User SET session = ?, server_address = ?, server_port = ? WHERE username = ?");
             ps.setBoolean(1, true);
             ps.setString(2, addr.replace("/", ""));
@@ -803,10 +822,6 @@ public class ThreadClient extends Thread{
                 groups.add(rs.getInt(1));
             }
 
-            for(int i: groups)
-                System.out.println(i);
-
-
             ResultSet rs2 = stmt.executeQuery(GET_GROUPS_QUERY);
 
             while (rs2.next()){
@@ -816,9 +831,6 @@ public class ThreadClient extends Thread{
                     }
                 }
             }
-
-            System.out.println("id do grupo: " + groupID);
-
 
         }catch(SQLException e){
             System.out.println("\n" + e);

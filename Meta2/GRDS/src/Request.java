@@ -11,17 +11,26 @@ public class Request implements Serializable {
     private String oldUsername;
     private String oldPassword;
     private String groupName;
+    private String groupAdmin;
     private String oldGroupName;
     private String Contact;
+    private String User;
+    private String UserUsername;
     private boolean session = false;
     private boolean groupOwner = false;
     private String message;
+    private boolean serverIsOnline = false;
     private ArrayList<String> listaContactos = new ArrayList<>();
+    private ArrayList<String> listaEstados = new ArrayList<>();
     private ArrayList<String> listaGrupos = new ArrayList<>();
+    private ArrayList<String> listaTodosGrupos = new ArrayList<>();
+    private ArrayList<String> listaAdmins = new ArrayList<>();
+    private ArrayList<String> listaMembrosGrupo = new ArrayList<>();
     private ArrayList<String> listaGruposAdmin = new ArrayList<>();
     private ArrayList<String> listaMembros = new ArrayList<>();
+    private ArrayList<String> listaUtilizadores = new ArrayList<>();
     private ArrayList<String> pendingJoinRequests = new ArrayList<>();
-    private ArrayList<Integer> pendingJoinRequestsGroupId = new ArrayList<>();
+    private ArrayList<String> pendingJoinRequestsGroupId = new ArrayList<>();
     private ArrayList<String> pendingContactRequests = new ArrayList<>();
     private ArrayList<Integer> acceptRejectIgnoreRequests = new ArrayList<>();
     private int port = 0;
@@ -186,11 +195,25 @@ public class Request implements Serializable {
 
     public String getOldGroupName() { return oldGroupName; }
 
+    public String getGroupAdmin() { return groupAdmin; }
+
     public String getContact() { return Contact; }
+
+    public String getUser() { return User; }
+
+    public String getUserUsername() { return UserUsername; }
 
     public ArrayList<String> getListaContactos() { return listaContactos; }
 
+    public ArrayList<String> getListaEstados() { return listaEstados; }
+
     public ArrayList<String> getListaGrupos() { return listaGrupos; }
+
+    public ArrayList<String> getListaTodosGrupos() { return listaTodosGrupos; }
+
+    public ArrayList<String> getListaAdmins() { return listaAdmins; }
+
+    public ArrayList<String> getListaMembrosGrupo() { return listaMembrosGrupo; }
 
     public ArrayList<String> getListaGruposAdmin() { return  listaGruposAdmin; }
 
@@ -199,6 +222,8 @@ public class Request implements Serializable {
     public ArrayList<String> getHistoricoGrupo() { return historicoGrupo; }
 
     public ArrayList<String> getHistoricoMensagens() { return historicoMensagens; }
+
+    public ArrayList<String> getListaUtilizadores() { return listaUtilizadores; }
 
     public void setID(int id) { this.id = id; }
 
@@ -218,7 +243,7 @@ public class Request implements Serializable {
         this.password = password;
     }
 
-    public ArrayList<Integer> getPendingJoinRequestsGroupId() {
+    public ArrayList<String> getPendingJoinRequestsGroupId() {
         return pendingJoinRequestsGroupId;
     }
 
@@ -228,21 +253,39 @@ public class Request implements Serializable {
 
     public void setGroupName(String groupName) { this.groupName = groupName; }
 
+    public void setGroupAdmin(String admin) { this.groupAdmin = admin; }
+
     public void setOldGroupName(String oldGroupName) { this.oldGroupName = oldGroupName; }
 
     public void setContact(String username) { this.Contact = username; }
+
+    public void setUser(String user) { this.User = user; }
+
+    public void setUserUsername(String username) { this.UserUsername = username; }
 
     public void login(String username, String password) {
 
     }
 
+    public void addUserSuccess(String user) { listaUtilizadores.add(user); }
+
     public void addContactSuccess(String newContact) {
         listaContactos.add(newContact);
+    }
+
+    public void addEstadoSuccess(String estado) {
+        listaEstados.add(estado);
     }
 
     public void removeContactSuccess(String contact) { listaContactos.remove(contact); }
 
     public void addGroupSuccess(String newGroup) { listaGrupos.add(newGroup); }
+
+    public void addAllGroupSuccess(String newGroup) { listaTodosGrupos.add(newGroup); }
+
+    public void addAdminSuccess(String admin) { listaAdmins.add(admin); }
+
+    public void addMemberGroupSuccess(String member) { listaMembrosGrupo.add(member); }
 
     public void leaveGroupSuccess(String group) { listaGrupos.remove(group); }
 
@@ -274,7 +317,7 @@ public class Request implements Serializable {
         return pendingContactRequests;
     }
 
-    public void setPendingJoinRequestsGroupId(int a) {
+    public void setPendingJoinRequestsGroupId(String a) {
         pendingJoinRequestsGroupId.add(a);
     }
 

@@ -18,6 +18,14 @@ public class ClientData implements Serializable {
 
     }
 
+    public InetAddress getNotifSocketAddress() {
+        return notifSocketAddress;
+    }
+
+    public int getNotifSocketPort() {
+        return notifSocketPort;
+    }
+
     public InetAddress getServerAddress() {
         return serverAddress;
     }
@@ -25,6 +33,8 @@ public class ClientData implements Serializable {
     public int getPort() {
         return serverPort;
     }
+
+    public int getClientPort() { return clientPort; }
 
     public void setClientNotifSocketAddressPort(InetAddress addr, int port) {
         notifSocketAddress = addr;
