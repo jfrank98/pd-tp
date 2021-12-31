@@ -59,6 +59,8 @@ public class SendFileReplica implements Runnable {
             added = false;
         }
 
+        System.out.println("server size: " + servers.size());
+
         do {
             try {
                 CanonicalFilePath = new File(localDirectory + File.separator + fileName).getCanonicalPath();
