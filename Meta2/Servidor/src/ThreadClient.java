@@ -107,7 +107,7 @@ public class ThreadClient extends Thread{
 
                         if(req.getID() != -1){
                             logout(req.getID());
-                            //loginUser(req.getUsername(), req.getPassword(), InetAddress.getLocalHost().getHostAddress(), startServer.getServerSocketPort());
+                            loginUser(req.getUsername(), req.getPassword(), InetAddress.getLocalHost().getHostAddress(), startServer.getServerSocketPort());
                         }
                     }
                     else if (req.getMessage().equalsIgnoreCase("CREATE_ACCOUNT")){
