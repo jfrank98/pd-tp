@@ -1,9 +1,9 @@
 import java.io.*;
+
 import java.net.*;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicReference;
 
 public class StartServer implements Runnable {
     private static final int MAX_SIZE = 4096;
@@ -23,12 +23,15 @@ public class StartServer implements Runnable {
     private static File file = new File();
     private Request request = new Request();
     private static ArrayList<ClientData> clientsToNotify = new ArrayList<>();
+    private static ArrayList<ServerData> serversToNotify = new ArrayList<>();
     private static ClientData client;
     private static boolean notification = false;
     private static String notificationMessage;
     private static String notificationType;
     private static String username;
     private static String groupName;
+    private static String toDeleteFile;
+    private static boolean deleteFile = false;
 
     public StartServer() {
 
@@ -192,41 +195,48 @@ public class StartServer implements Runnable {
                 else request.setMessage("SERVER_ACTIVE");
 
                 if (isNewFile()) {
+
                     ServerSocket fileReplicaSocket = new ServerSocket(0);
 
                     request.setFileSocketAddress(fileReplicaSocket.getInetAddress());
                     request.setFileSocketPort(fileReplicaSocket.getLocalPort());
 
                     request.setMessage("NEW_FILE");
-                    System.out.println("file " + file.getUniqueName());
                     request.setF(file);
 
-                    Runnable sendFileReplica = new SendFileReplica(request.getF().getName(), fileReplicaSocket, request.getF().getAffectedClients());
+                    Runnable sendFileReplica = new SendFileReplica(request.getF().getUniqueName(), fileReplicaSocket, request.getF().getAffectedClients());
                     new Thread(sendFileReplica).start();
                     sendFileNotif = true;
                     notification = true;
                     setNewFile(false);
-                }
-                else if (isNotification()) {
+                } else if (isNotification()) {
                     if (sendFileNotif){
                         request.setF(file);
-                        System.out.println("file " + file.getUniqueName());
-                        System.out.println("ficheiroL " + request.getF().getUniqueName());
                         sendFileNotif = false;
                     }
                     request.setUsername(username);
-                    request.setGroupName(groupName);
-                    request.setUserToNotify(client);
                     request.setNotificationMessage(notificationMessage);
                     request.setNotificationType(notificationType);
+                    request.setGroupName(groupName);
                     request.setMessage("SEND_NOTIFICATION");
 
+                    for(ClientData client : clientsToNotify) {
+                        request.setUserToNotify(client);
+                    }
 
-//                    for(ClientData client : clientsToNotify) {
-//                        request.setUserToNotify(client);
-//                    }
-
+                    clientsToNotify.clear();
                     setNotification(false);
+                } else if (deleteFile) {
+                    request.setMessage("DELETE_FILE");
+                    request.setToDeleteFile(toDeleteFile);
+
+                    for(ServerData s : serversToNotify) {
+                        request.addDeleteFileServers(s);
+                    }
+
+                    serversToNotify.clear();
+
+                    setDeleteFile(false);
                 }
 
                 data = serialize(request);
@@ -241,7 +251,6 @@ public class StartServer implements Runnable {
 
                     File fileInfo = request.getF();
 
-                    System.out.println("nome file: " + fileInfo.getUniqueName());
 
                     Socket receiveFileSocket = new Socket(request.getFileSocketAddress(), request.getFileSocketPort());
 
@@ -249,21 +258,27 @@ public class StartServer implements Runnable {
                     new Thread(r).start();
                 }
                 else if (request.getMessage().equalsIgnoreCase("NEW_NOTIFICATION")) {
-
                     List<ClientData> toRemove = new ArrayList<>();
 
                     for (ClientData clie : request.getConnectedClients()) {
                         for (ClientData cli : request.getClientsToNotify()) {
 
-                            if ((clie.getServerAddress().toString().equals(cli.getServerAddress().toString()) && clie.getPort() == cli.getPort())) {
+                            if ((InetAddress.getLocalHost().getHostAddress().equals(cli.getServerAddress().toString().replaceAll("/", ""))
+                                    && listeningSocket.getLocalPort() == cli.getPort())
+                                    && clie.getClientAddress().toString().equals(cli.getClientAddress().toString())
+                                    && clie.getClientPort() == cli.getClientPort()
+                            ) {
                                 new SendNotification(request, clie).start();
                                 toRemove.add(cli);
                             }
                         }
                     }
                     request.getClientsToNotify().removeAll(toRemove);
-                }
-                else if (request.getMessage().equalsIgnoreCase("CONTINUE")) {
+                } else if (request.getMessage().equalsIgnoreCase("DELETE_FILE_")) {
+                    System.out.println("bom dia ca tou eu");
+
+                    deleteFile(request.getToDeleteFile());
+                } else if (request.getMessage().equalsIgnoreCase("CONTINUE")) {
                     request.getClientsToNotify().clear();
                 }
 
@@ -271,29 +286,36 @@ public class StartServer implements Runnable {
             } catch (SocketTimeoutException e) {
                 attempt++;
                 System.out.println("\nNão foi possível estabelecer ligação com o GRDS. Tentativas restantes: " + (3 - attempt));
-            } catch (IOException e) {
-                e.printStackTrace();
-            } catch (ClassNotFoundException e) {
+            } catch (ClassNotFoundException | IOException e) {
                 e.printStackTrace();
             }
             cycle++;
         }
-        if (attempt == 3){
-            ObjectOutputStream out;
-            System.out.println("\nA fechar o servidor...");
 
-            try {
-                Thread.sleep(3000);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-            SocketGRDS.close();
-            System.exit(0);
+        System.out.println("\nA fechar o servidor...");
+
+        try {
+            Thread.sleep(3000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        SocketGRDS.close();
+        System.exit(0);
+
+    }
+
+    private void deleteFile(String filename) {
+        java.io.File f = new java.io.File("." + java.io.File.separator + "DownloadsChat" + java.io.File.separator + filename);
+
+        if (f.delete()) {
+            System.out.println("Ficheiro " + filename + " eliminado");
+        } else {
+            System.out.println("Não foi possível eliminar o ficheiro " + filename);
         }
     }
 
     public void setNotification(boolean notification) {
-        this.notification = notification;
+        StartServer.notification = notification;
     }
 
     public static byte[] serialize(Object obj) throws IOException {
@@ -317,11 +339,6 @@ public class StartServer implements Runnable {
         return listeningSocket.getLocalPort();
     }
 
-    public String getServerSocketAddress() {
-        System.out.println("aaaaaaaaaaa " + listeningSocket.getLocalSocketAddress().toString());
-        return listeningSocket.getLocalSocketAddress().toString();
-    }
-
     public void addUserToNotify(ClientData userAffectedByNotification) {
         client = userAffectedByNotification;
         clientsToNotify.add(userAffectedByNotification);
@@ -335,5 +352,17 @@ public class StartServer implements Runnable {
         StartServer.username = username;
     }
 
-    public void setGroupName(String groupName) { StartServer.groupName = groupName; }
+    public void setGroupName(String a) { groupName = a; }
+
+    public void setFilename(String filename) {
+        toDeleteFile = filename;
+    }
+
+    public void setDeleteFile(boolean b) {
+        deleteFile = b;
+    }
+
+    public void setServersToNotify(List<ServerData> s) {
+        serversToNotify.addAll(s);
+    }
 }

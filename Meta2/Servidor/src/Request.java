@@ -2,6 +2,7 @@ import java.io.Serializable;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.List;
 
 public class Request implements Serializable {
     private int id = -1;
@@ -39,6 +40,8 @@ public class Request implements Serializable {
     private ArrayList<String> historicoGrupo = new ArrayList<>();
     private ArrayList<ClientData> clientsToNotify = new ArrayList<>();
     private ArrayList<ClientData> connectedClients = new ArrayList<>();
+    private List<String> groupFiles = new ArrayList<>();
+    private List<String> chatFiles = new ArrayList<>();
     private String messageContent;
     private File f = new File();
     private InetAddress fileSocketAddress;
@@ -50,6 +53,33 @@ public class Request implements Serializable {
     private InetAddress notificationSocketAddress;
     private int notificationSocketPort;
     private String notificationType;
+    private String toDeleteFile;
+    private List<ServerData> deleteFileServers = new ArrayList<>();
+    private boolean deleteFile = false;
+
+    public List<ServerData> getDeleteFileServers() {
+        return deleteFileServers;
+    }
+
+    public void addDeleteFileServers(ServerData s) {
+        deleteFileServers.add(s);
+    }
+
+    public boolean isDeleteFile() {
+        return deleteFile;
+    }
+
+    public void setDeleteFile(boolean deleteFile) {
+        this.deleteFile = deleteFile;
+    }
+
+    public String getToDeleteFile() {
+        return toDeleteFile;
+    }
+
+    public void setToDeleteFile(String toDeleteFile) {
+        this.toDeleteFile = toDeleteFile;
+    }
 
     public String getNotificationType() {
         return notificationType;
@@ -341,6 +371,18 @@ public class Request implements Serializable {
         userToNotify = userAffectedByNotification;
         clientsToNotify.add(userAffectedByNotification);
     }
+
+    public List<String> getGroupFiles() {
+        return groupFiles;
+    }
+
+    public void addGroupFile(String s) { groupFiles.add(s); }
+
+    public List<String> getChatFiles() {
+        return chatFiles;
+    }
+
+    public void addChatFile(String s) { chatFiles.add(s); }
 
     public void setNotificationMessage(String s) {
         notificationMessage = s;

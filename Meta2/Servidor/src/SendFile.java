@@ -19,7 +19,7 @@ public class SendFile implements Runnable{
         OutputStream out = null;
         byte []fileChunk = new byte[MAX_SIZE];
         int nbytes;
-        localDirectory = new File("./".trim());
+        localDirectory = new File("./DownloadsChat".trim());
 
         if(!localDirectory.exists()){
             System.out.println("A directoria " + localDirectory + " nao existe!");
@@ -56,15 +56,13 @@ public class SendFile implements Runnable{
 
                 if (nbytes > 0) {
                     out.write(fileChunk, 0, nbytes);
-                    out.flush();
+
                 }
                     /*try {
                         Thread.sleep(1);
                     } catch (InterruptedException ex) {}*/
             } while (nbytes > 0);
 
-            fileInputStream.close();
-            out.close();
             System.out.println("Ficheiro enviado com sucesso.");
         } catch (FileNotFoundException e) {
             e.printStackTrace();
@@ -74,8 +72,19 @@ public class SendFile implements Runnable{
             }else{
                 System.out.println("Ocorreu a excepcao {" + e +"} ao tentar criar o ficheiro " + CanonicalFilePath + "!");
             }
-
-            return;
+        } finally {
+            try {
+                if (out != null) {
+                    out.close();
+                }
+                if (fileInputStream != null)
+                    fileInputStream.close();
+                if (serverSocket != null) {
+                    serverSocket.close();
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
 

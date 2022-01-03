@@ -23,14 +23,15 @@ public class GRDS implements Runnable{
         ByteArrayOutputStream baos;
         ObjectOutputStream oos;
         boolean firstServer = true;
-        int serverID = 1, clientID = 1;
+        int serverID = 1;
         ServerData empty = new ServerData();
-        ArrayList<ServerData> serverList;
 
-        Request req, notifNewFile = null, notificationRequest = null;
+        Request req, notifNewFile = null, notificationRequest = null, deleteFileReq = null;
         List<ServerData> toNotifyNewFileServers = new ArrayList<>();
         List<ServerData> newNotificationServers = new ArrayList<>();
-        List<ClientData> clientsToNotify = new ArrayList<>();
+        List<ServerData> deleteFileServers = new ArrayList<>();
+        final List<ServerData> tempServers = new ArrayList<>();
+        String filename = null;
 
 
         //Verifica se recebeu os argumentos necessários: porto de escuta
@@ -98,26 +99,20 @@ public class GRDS implements Runnable{
                                 s.setOnline(true);
                             }
                         }
-                        serverList = new ArrayList<>(servers);
                     }
-                    /*ArrayList<Object> array = new ArrayList<>();
-                    array.add(serverList);*/
+
                     data = serialize(req);
                     packet.setData(data, 0, data.length);
                     socket.send(packet);
                 }
                 else if (req.getMessage().equals(SERVER_GRDS_CHECK)) {
                     byte [] data;
-                    synchronized (servers) {
-                        serverList = new ArrayList<>(servers);
-                    }
-                    ServerData removeFromNewFileList = null, removeFromNewNotifList = null;
-                    boolean notifiednewfile = false, notified = false;
+                    ServerData removeFromNewFileList = null, removeFromNewNotifList = null, removeFromDeleteFileList = null;
+                    boolean notifiednewfile = false, notified = false, deleteFile = false;
 
                     //Verifica se o packet recebido é de um servidor ao qual tem de ser enviada uma notificação
                     for (ServerData s : newNotificationServers) {
                         if (s.getListeningPort() == packet.getPort()){
-                            System.out.println("new notif");
                             removeFromNewNotifList = s;
                             notified = true;
                         }
@@ -126,22 +121,34 @@ public class GRDS implements Runnable{
                     for (ServerData s : toNotifyNewFileServers){
                         //System.out.println("packet: " + s.getListeningPort() + " tonotify: " + packet.getPort());
                         if (s.getListeningPort() == packet.getPort()){
-                            System.out.println("new file");
                             removeFromNewFileList = s;
                             notifiednewfile = true;
+                        }
+                    }
+
+                    for (ServerData s : deleteFileServers) {
+                        if (s.getListeningPort() == packet.getPort()) {
+                            removeFromDeleteFileList = s;
+                            deleteFile = true;
                         }
                     }
                     if (notified){
                         notificationRequest.setMessage("NEW_NOTIFICATION");
                         newNotificationServers.remove(removeFromNewNotifList);
-                        System.out.println("asfmsfgdim " + notificationRequest.getClientsToNotify().size());
                         data = serialize(notificationRequest);
                     }
                     else if (notifiednewfile){
                         notifNewFile.setMessage("NOTIFICATION_NEW_FILE");
                         toNotifyNewFileServers.remove(removeFromNewFileList);
                         data = serialize(notifNewFile);
-                    } else { data = serialize(req); }
+                    } else if (deleteFile) {
+                        deleteFileReq.setMessage("DELETE_FILE_");
+                        deleteFileServers.remove(removeFromDeleteFileList);
+                        deleteFileReq.setToDeleteFile(filename);
+                        data = serialize(deleteFileReq);
+                    } else {
+                        data = serialize(req);
+                    }
 
                     packet.setData(data, 0, data.length);
                     socket.send(packet);
@@ -197,8 +204,6 @@ public class GRDS implements Runnable{
                 else if (req.getMessage().equalsIgnoreCase("SEND_NOTIFICATION")) {
                     req.setMessage("CONTINUE");
 
-                    System.out.println("sizeallclients " + allClients.size());
-
                     req.getConnectedClients().clear();
 
                     for (ClientData cli : allClients) {
@@ -207,13 +212,10 @@ public class GRDS implements Runnable{
 
                     byte [] data = serialize(req);
                     packet.setData(data, 0, data.length);
-
                     boolean added = false;
                     //System.out.println("ok so far so good");
                     for (ClientData cli : req.getClientsToNotify()) {
-                        System.out.println("cli notif: " + cli.getPort());
                         for (ServerData s : newNotificationServers) {
-                            System.out.println("packet: " + s.getListeningPort() + " tonotify: " + cli.getPort());
                             if (cli.getServerAddress() == s.getServerAddress() && cli.getPort() == s.getListeningPort()) {
                                 added = true;
                                 break;
@@ -238,7 +240,6 @@ public class GRDS implements Runnable{
 
                     for (ClientData cli : req.getF().getAffectedClients()) {
                         for (ServerData s : toNotifyNewFileServers) {
-                            System.out.println("packet: " + s.getListeningPort() + " tonotify: " + cli.getPort());
                             if (cli.getServerAddress() == s.getServerAddress() && cli.getPort() == s.getListeningPort()) {
                                 added = true;
                                 break;
@@ -250,6 +251,19 @@ public class GRDS implements Runnable{
                     }
 
                     notifNewFile = req;
+
+                    socket.send(packet);
+                } else if (req.getMessage().equalsIgnoreCase("DELETE_FILE")) {
+                    req.setMessage("CONTINUE");
+
+                    byte [] data = serialize(req);
+                    packet.setData(data, 0, data.length);
+
+                    deleteFileServers.addAll(req.getDeleteFileServers());
+
+                    filename = req.getToDeleteFile();
+
+                    deleteFileReq = req;
 
                     socket.send(packet);
                 }

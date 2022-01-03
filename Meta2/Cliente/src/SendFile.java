@@ -63,8 +63,6 @@ public class SendFile implements Runnable{
                     } catch (InterruptedException ex) {}*/
             } while (nbytes > 0);
 
-            fileInputStream.close();
-            out.close();
             System.out.println("Ficheiro enviado com sucesso.");
         } catch (FileNotFoundException e) {
             e.printStackTrace();
@@ -74,8 +72,17 @@ public class SendFile implements Runnable{
             }else{
                 System.out.println("Ocorreu a excepcao {" + e +"} ao tentar criar o ficheiro " + CanonicalFilePath + "!");
             }
-
-            return;
+        } finally {
+            try {
+                if (serverSocket != null)
+                    serverSocket.close();
+                if (fileInputStream != null)
+                    fileInputStream.close();
+                if (out != null)
+                    out.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
 

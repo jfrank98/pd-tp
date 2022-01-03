@@ -328,7 +328,7 @@ public class Cliente implements Runnable {
                                     String msg;
                                     do {
                                         if (enteredChat) {
-                                            System.out.println("\n\nNota: utilize os comandos !sendfile e !getfile para enviar e receber ficheiros e !sair para sair da conversa privada.\n");
+                                            System.out.println("\n\nNota: utilize os comandos !sendfile e !getfile para enviar e receber ficheiros, !eliminar para eliminar a última mensagem/ficheiro que enviou e !sair para sair da conversa privada.\n");
 
                                             lastMessageHistorySize = request.getHistoricoMensagens().size();
                                             for (String message : request.getHistoricoMensagens()) {
@@ -346,7 +346,7 @@ public class Cliente implements Runnable {
 
                                         msg = sc.nextLine();
 
-
+                                        request.setMessage("SEND_MESSAGE");
                                         if (msg.equalsIgnoreCase("!sendfile")) {
                                             request.setSendFile(true);
                                             System.out.print("Nome do ficheiro a enviar: ");
@@ -354,22 +354,52 @@ public class Cliente implements Runnable {
                                             fileName = sc.nextLine();
 
                                             request.getF().setName(fileName);
-                                            //request.setMessageContent("--- Ficheiro \"" + fileName + "\" enviado por " + request.getUsername() + " ---");
+                                            request.setMessageContent("--- Ficheiro \"" + fileName + "\" enviado por " + request.getUsername() + " ---");
                                         } else if (msg.equalsIgnoreCase("!getfile")) {
                                             request.setReceiveFile(true);
-                                            System.out.print("Nome do ficheiro a receber: ");
-                                            while (!sc.hasNextLine());
+
+                                            //Pede lista de ficheiros disponíveis
+                                            request.setMessage("LIST_CHAT_FILES");
+
+                                            if (sendMessage(request, oout) == 0) continue;
+
+                                            request = (Request) oinS.readObject();
+
+                                            if (request.getChatFiles().isEmpty()) {
+                                                System.out.println("Não há ficheiros disponíveis.");
+                                                continue;
+                                            }
+
+                                            System.out.println("Lista de ficheiros disponíveis:");
+                                            for (String s : request.getChatFiles()) {
+                                                System.out.println("\t" + s);
+                                            }
+
+                                            System.out.print("\n\nNome do ficheiro a receber: ");
+                                            while (!sc.hasNextLine()) ;
                                             fileName = sc.nextLine();
-                                            Runnable r = new ReceiveFile(fileName, socket);
+
+                                            request.getF().setName(fileName);
+                                            request.setMessage("GET_FILE");
+
+                                            ServerSocket getFileSocket = new ServerSocket(0);
+                                            request.setFileSocketPort(getFileSocket.getLocalPort());
+                                            request.setFileSocketAddress(InetAddress.getByName(InetAddress.getLocalHost().getHostAddress()));
+
+                                            Runnable r = new ReceiveFile(fileName, getFileSocket);
                                             new Thread(r).start();
                                         } else if (msg.equalsIgnoreCase("!sair")) {
                                             inChat = false;
                                             t.setInChat(false);
                                             break;
+                                        } else if (msg.equalsIgnoreCase("!eliminar")) {
+                                            request.setMessage("DELETE_LAST_MSG");
+
                                         } else {
                                             request.setMessageContent(msg);
+                                            request.setSendFile(false);
+                                            request.setReceiveFile(false);
                                         }
-                                        request.setMessage("SEND_MESSAGE");
 
                                         if (sendMessage(request, oout) == 0) continue;
 
@@ -460,13 +490,15 @@ public class Cliente implements Runnable {
                                         continue;
                                     }
 
-                                    inChat = true;
+                                    boolean inGroupChat = true;
+                                    t.setCurrentGroup(request.getGroupName());
+                                    t.setInGroupChat(true);
                                     boolean enteredChat = true;
                                     String fileName = null;
 
                                     do {
                                         if (enteredChat) {
-                                            System.out.println("\n\nNota: utilize os comandos !sendfile e !getfile enviar e receber ficheiros e !sair para sair do chat de grupo.\n");
+                                            System.out.println("\n\nNota: utilize os comandos !sendfile e !getfile para enviar e receber ficheiros, !eliminar para eliminar a última mensagem/ficheiro que enviou e !sair para sair da conversa privada.\n");
 
                                             lastMessageHistorySize = request.getHistoricoGrupo().size();
 
@@ -485,7 +517,7 @@ public class Cliente implements Runnable {
                                         System.out.print(" >> ");
                                         while (!sc.hasNextLine()) ;
                                         String msg = sc.nextLine();
-
+                                        request.setMessage("SEND_GROUP_MESSAGE");
                                         if (msg.equalsIgnoreCase("!sendfile")) {
                                             request.setSendFile(true);
                                             System.out.print("Nome do ficheiro a enviar: ");
@@ -493,23 +525,49 @@ public class Cliente implements Runnable {
                                             fileName = sc.nextLine();
 
                                             request.getF().setName(fileName);
-                                            //request.setMessageContent("--- Ficheiro \"" + fileName + "\" enviado por " + request.getUsername() + " ---");
+                                            request.setMessageContent("--- Ficheiro \"" + fileName + "\" enviado por " + request.getUsername() + " ---");
                                         } else if (msg.equalsIgnoreCase("!getfile")) {
                                             request.setReceiveFile(true);
-                                            System.out.print("Nome do ficheiro a receber: ");
+
+                                            //Pede lista de ficheiros disponíveis
+                                            request.setMessage("LIST_GROUP_FILES");
+
+                                            if (sendMessage(request, oout) == 0) continue;
+
+                                            request = (Request) oinS.readObject();
+
+                                            if (request.getGroupFiles().isEmpty()) continue;
+
+                                            System.out.println("Lista de ficheiros disponíveis:");
+
+                                            for (String s : request.getGroupFiles()) {
+                                                System.out.println("\t" + s);
+                                            }
+
+                                            System.out.print("\n\nNome do ficheiro a receber: ");
                                             while (!sc.hasNextLine()) ;
                                             fileName = sc.nextLine();
-                                            Runnable r = new ReceiveFile(fileName, socket);
+
+                                            request.getF().setName(fileName);
+                                            request.setMessage("GET_FILE");
+                                            ServerSocket getFileSocket = new ServerSocket(0);
+                                            request.setFileSocketPort(getFileSocket.getLocalPort());
+                                            request.setFileSocketAddress(InetAddress.getByName(InetAddress.getLocalHost().getHostAddress()));
+
+                                            Runnable r = new ReceiveFile(fileName, getFileSocket);
                                             new Thread(r).start();
                                         } else if (msg.equalsIgnoreCase("!sair")) {
-                                            inChat = false;
+                                            inGroupChat = false;
+                                            t.setInGroupChat(false);
                                             break;
+                                        } else if (msg.equalsIgnoreCase("!eliminar")) {
+                                            request.setMessage("DELETE_LAST_MSG_GROUP");
+
                                         } else {
                                             request.setMessageContent(msg);
                                             request.setSendFile(false);
                                             request.setReceiveFile(false);
                                         }
-                                        request.setMessage("SEND_GROUP_MESSAGE");
 
                                         if (sendMessage(request, oout) == 0) continue;
 
@@ -521,6 +579,7 @@ public class Cliente implements Runnable {
                                             Runnable r = new SendFile(fileName, socket);
                                             new Thread(r).start();
                                         }
+
 
                                     } while (true);
                                 }
@@ -1115,7 +1174,7 @@ public class Cliente implements Runnable {
 
     @Override
     public void run() {
-        while (inChat) {
+       /* while (inChat) {
             int historySize = request.getHistoricoMensagens().size();
             final ArrayList<String> message = request.getHistoricoMensagens();
             if (historySize > lastMessageHistorySize) {
@@ -1128,7 +1187,7 @@ public class Cliente implements Runnable {
         }
         while (!inChat) {
 
-        }
+        }*/
         /*
         while(true) {
             try {

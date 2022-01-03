@@ -2,6 +2,7 @@ import java.io.Serializable;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.List;
 
 public class Request implements Serializable {
     private int id = -1;
@@ -19,6 +20,7 @@ public class Request implements Serializable {
     private boolean session = false;
     private boolean groupOwner = false;
     private String message;
+    private boolean serverIsOnline = false;
     private ArrayList<String> listaContactos = new ArrayList<>();
     private ArrayList<String> listaEstados = new ArrayList<>();
     private ArrayList<String> listaGrupos = new ArrayList<>();
@@ -38,6 +40,8 @@ public class Request implements Serializable {
     private ArrayList<String> historicoGrupo = new ArrayList<>();
     private ArrayList<ClientData> clientsToNotify = new ArrayList<>();
     private ArrayList<ClientData> connectedClients = new ArrayList<>();
+    private List<String> groupFiles = new ArrayList<>();
+    private List<String> chatFiles = new ArrayList<>();
     private String messageContent;
     private File f = new File();
     private InetAddress fileSocketAddress;
@@ -340,6 +344,18 @@ public class Request implements Serializable {
         userToNotify = userAffectedByNotification;
         clientsToNotify.add(userAffectedByNotification);
     }
+
+    public List<String> getGroupFiles() {
+        return groupFiles;
+    }
+
+    public void addGroupFile(String s) { groupFiles.add(s); }
+
+    public List<String> getChatFiles() {
+        return chatFiles;
+    }
+
+    public void addChatFile(String s) { chatFiles.add(s); }
 
     public void setNotificationMessage(String s) {
         notificationMessage = s;

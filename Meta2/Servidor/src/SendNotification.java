@@ -14,7 +14,6 @@ public class SendNotification extends Thread{
     public void run() {
         try {
             Socket s = new Socket(cli.getNotifSocketAddress(), cli.getNotifSocketPort());
-
             ObjectOutputStream out = new ObjectOutputStream(s.getOutputStream());
 
             out.writeUnshared(notificationMessage);

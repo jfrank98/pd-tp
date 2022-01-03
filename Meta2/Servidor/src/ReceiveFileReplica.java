@@ -24,10 +24,10 @@ public class ReceiveFileReplica implements Runnable{
         System.out.println(fileName);
         File localDirectory;
         String localFilePath = null;
-        InputStream in;
+        InputStream in = null;
         Socket client;
         byte [] buffer = new byte[MAX_SIZE];
-        FileOutputStream localFileOutputStream;
+        FileOutputStream localFileOutputStream = null;
 
         localDirectory = new File(("." + File.separator + "DownloadsChat").trim());
 
@@ -59,31 +59,33 @@ public class ReceiveFileReplica implements Runnable{
 
             in = serverSocket.getInputStream();
 
-           // int size = in.read(buffer);
-
-           // System.out.println("Tamanho do ficheiro: " + size);
-
             int countBytes = 0;
             int nbytes;
             do{
                 nbytes = in.read(buffer);
 
-                System.out.println("bytes lidos: " + nbytes);
                 if (nbytes > 0) {
                     localFileOutputStream.write(buffer, 0, nbytes);
                 }
             }while(nbytes >= 0);
 
             System.out.println("Ficheiro recebido com sucesso.");
-
-            in.close();
-            localFileOutputStream.close();
-            serverSocket.close();
         }catch(IOException e) {
             if (localFilePath == null) {
                 System.out.println("Ocorreu a excepcao {" + e + "} ao obter o caminho canonico para o ficheiro local!");
             } else {
                 System.out.println("Ocorreu a excepcao {" + e + "} ao tentar criar o ficheiro " + localFilePath + "!");
+            }
+        } finally {
+            try {
+                if (serverSocket != null)
+                    serverSocket.close();
+                if (in != null)
+                    in.close();
+                if (localFileOutputStream != null)
+                    localFileOutputStream.close();
+            } catch (IOException e) {
+                e.printStackTrace();
             }
         }
     }
