@@ -22,6 +22,8 @@ public class Cliente implements Runnable {
     private static boolean inChat = false;
     private static int lastMessageHistorySize = 0;
 
+    private static ServerSocket notificationsSocket;
+
     public static void main(String args[]) {
         DatagramPacket packet;
         ServerData server;
@@ -105,7 +107,7 @@ public class Cliente implements Runnable {
             oinS = new ObjectInputStream(socket.getInputStream());
 
             //Cria socket dedicado a notificações
-            ServerSocket notificationsSocket = new ServerSocket(0);
+            notificationsSocket = new ServerSocket(0);
 
             //Inicia thread dedicada à receção de notificações
             NotificationsThread t = new NotificationsThread(notificationsSocket);
@@ -1116,6 +1118,8 @@ public class Cliente implements Runnable {
         DatagramPacket packet;
         ByteArrayInputStream bin;
         ServerData newServer;
+        Request requestTemp = request;
+
         int attempt = 0;
 
         try {
@@ -1160,6 +1164,16 @@ public class Cliente implements Runnable {
                     oout.flush();
 
                     request = (Request) oinS.readObject();
+
+                    ClientData clientData = new ClientData(newServer.getServerAddress(), newServer.getListeningPort(), socket.getLocalAddress(), socket.getLocalPort());
+                    clientData.setClientNotifSocketAddressPort(notificationsSocket.getInetAddress(), notificationsSocket.getLocalPort());
+                    request.addConnectedClient(clientData);
+
+                    request.setMessage("UPDATE_CLIENT_LIST");
+
+                    data = serialize(request);
+                    packet.setData(data, 0, data.length);
+                    SocketGRDS.send(packet);
 
                     System.out.println(request.getMessage() + "\n");
                     return true;

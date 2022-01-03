@@ -104,6 +104,11 @@ public class ThreadClient extends Thread{
 
                     if (req.getMessage().equalsIgnoreCase("SERVER_REQUEST")){
                         req.setMessage("\nLigação com o servidor estabelecida.");
+
+                        if(req.getID() != -1){
+                            logout(req.getID());
+                            //loginUser(req.getUsername(), req.getPassword(), InetAddress.getLocalHost().getHostAddress(), startServer.getServerSocketPort());
+                        }
                     }
                     else if (req.getMessage().equalsIgnoreCase("CREATE_ACCOUNT")){
                         req.setMessage(createAccount(req.getUsername(), req.getPassword(), req.getName(), InetAddress.getLocalHost().getHostAddress(), startServer.getServerSocketPort()));
