@@ -20,7 +20,7 @@ public class SendFileReplica implements Runnable {
     public void run() {
         File localDirectory;
         String CanonicalFilePath = null;
-        FileInputStream fileInputStream;
+        FileInputStream fileInputStream = null;
         OutputStream out = null;
         byte[] fileChunk = new byte[MAX_SIZE];
         int nbytes;
@@ -46,7 +46,6 @@ public class SendFileReplica implements Runnable {
         List<ServerData> servers = new ArrayList<>();
 
         boolean added = false;
-
         for (ClientData cli : clientData) {
             for (ServerData s : servers) {
                 if (cli.getPort() == s.getListeningPort()) {
@@ -59,9 +58,7 @@ public class SendFileReplica implements Runnable {
             added = false;
         }
 
-        System.out.println("server size: " + servers.size());
-
-        do {
+        while (i < servers.size()) {
             try {
                 CanonicalFilePath = new File(localDirectory + File.separator + fileName).getCanonicalPath();
 
@@ -93,8 +90,8 @@ public class SendFileReplica implements Runnable {
                     } catch (InterruptedException ex) {}*/
                 } while (nbytes > 0);
 
-                fileInputStream.close();
-                out.close();
+                //fileInputStream.close();
+                //out.close();
                 System.out.println("Ficheiro enviado com sucesso.");
                 i++;
 
@@ -107,7 +104,20 @@ public class SendFileReplica implements Runnable {
                     System.out.println("Ocorreu a excepcao {" + e + "} ao tentar criar o ficheiro " + CanonicalFilePath + "!");
                 }
             }
-        } while (i < servers.size());
+            finally {
+                try {
+                    if (out != null)
+                        out.close();
+                    if (fileInputStream != null)
+                        fileInputStream.close();
+                    if (serverSocket != null) {
+                        serverSocket.close();
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
     }
 
 }

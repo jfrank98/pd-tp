@@ -7,7 +7,9 @@ import java.net.Socket;
 public class NotificationsThread extends Thread{
     private ServerSocket socket;
     private boolean inChat = false;
+    private boolean inGroupChat = false;
     private String currentContact = "";
+    private String currentGroup = "";
     public NotificationsThread(ServerSocket notificationsSocket) {
         socket = notificationsSocket;
     }
@@ -30,9 +32,18 @@ public class NotificationsThread extends Thread{
                     } else {
                         System.out.println("\nRecebeu uma nova mensagem de " + req.getUsername());
                     }
+                } else if (type.equalsIgnoreCase("MESSAGE_GROUP")){
+                    if (inGroupChat && req.getGroupName().equalsIgnoreCase(currentGroup)) {
+                        System.out.println("\n" + req.getNotificationMessage());
+                    } else {
+                        System.out.println("\nRecebeu uma nova mensagem de " + req.getUsername() + " no grupo " + req.getGroupName());
+                    }
                 } else if (type.equalsIgnoreCase("FILE")){
-                    System.out.print("\nNovo ficheiro \"" + req.getF().getUniqueName() + "\" disponibilizdo por " + req.getUsername());
+                    System.out.println("\nNovo ficheiro \"" + req.getF().getUniqueName() + "\" disponibilizdo por " + req.getUsername());
+                } else if (type.equalsIgnoreCase("FILE_GROUP")) {
+                    System.out.println("\nNovo ficheiro \"" + req.getF().getUniqueName() + "\" disponibilizdo por " + req.getUsername() + " no grupo " + req.getGroupName());
                 }
+                System.out.print(" >> ");
             } catch (IOException | ClassNotFoundException e) {
                 e.printStackTrace();
             }
@@ -41,5 +52,9 @@ public class NotificationsThread extends Thread{
 
     public void setInChat(boolean a) { inChat = a; }
 
+    public void setInGroupChat(boolean a) { inGroupChat = a;}
+
     public void setCurrentContact(String a) { currentContact = a; }
+
+    public void setCurrentGroup(String groupName) { currentGroup = groupName; }
 }

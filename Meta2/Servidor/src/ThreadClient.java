@@ -1,5 +1,4 @@
-import com.mysql.cj.xdevapi.JsonParser;
-
+import javax.xml.transform.Result;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -50,7 +49,6 @@ public class ThreadClient extends Thread{
     private boolean uploaded;
 
     public ThreadClient(Socket clientSocket, Statement stmt, Connection conn, StartServer startServer) {
-        System.out.println("port cli: " + clientSocket.getPort());
         this.socket = clientSocket;
         this.stmt = stmt;
         this.conn = conn;
@@ -75,7 +73,7 @@ public class ThreadClient extends Thread{
 
             try {
                 try {
-                    //socket.setSoTimeout(10000);
+                    //socket.setSoTimeout(5000);
                     //Lê o pedido do cliente
                     req = (Request) oin.readObject();
                 }catch(EOFException | SocketException | SocketTimeoutException e) {
@@ -338,11 +336,19 @@ public class ThreadClient extends Thread{
                             ServerSocket fileSocket = new ServerSocket(0);
                             req.setFileSocketPort(fileSocket.getLocalPort());
                             req.setFileSocketAddress(fileSocket.getInetAddress());
-                            Runnable r = new ReceiveFile(req.getF().getName(), fileSocket, this);
-                            new Thread(r).start();
+
                             File f;
                             req.setMessage(createMessage(req.getID(), req.getMessageContent(), getIDFromDB(req.getContact()), req.isSendFile(), req.getF()));
-                            f = getNewFileAffectedUsers(req.getContact(), false);
+
+                            Runnable r = new ReceiveFile(req.getF().getUniqueName(), fileSocket, this);
+                            new Thread(r).start();
+
+                            f = getNewFileAffectedUsers(req.getID(), req.getContact(), false);
+
+                            for (ClientData client : f.getAffectedClients()){
+                                startServer.addUserToNotify(client);
+                            }
+
                             f.setName(req.getF().getName());
                             f.setUniqueName(req.getF().getUniqueName());
                             startServer.setFile(f);
@@ -357,31 +363,97 @@ public class ThreadClient extends Thread{
                         }
                     }
                     else if (req.getMessage().equalsIgnoreCase("SEND_GROUP_MESSAGE")) {
+                        startServer.setGroupName(req.getGroupName());
+                        startServer.setUsername(req.getUsername());
 
-                        if (req.isSendFile()){
-                            ServerSocket fileSocket = new ServerSocket(0);
-                            req.setFileSocketPort(fileSocket.getLocalPort());
-                            req.setFileSocketAddress(fileSocket.getInetAddress());
-                            System.out.println("Receber ficheiro ");
-                            Runnable r = new ReceiveFile(req.getF().getName(), fileSocket);
-                            new Thread(r).start();
-                        }
                         groupID = getGroupIDFromBD(req.getGroupName(), req.getID());
 
                         if(groupID == 0){
                             req.setMessage("FAILURE - Não está em nenhum grupo com esse nome");
                         }
+
+                        if (req.isSendFile()){
+                            ServerSocket fileSocket = new ServerSocket(0);
+                            req.setFileSocketPort(fileSocket.getLocalPort());
+                            req.setFileSocketAddress(fileSocket.getInetAddress());
+
+                            File f;
+                            req.setMessage(createGroupMessage(req.getID(), req.getMessageContent(), groupID, req.isSendFile(), req.getF()));
+
+                            Runnable r = new ReceiveFile(req.getF().getUniqueName(), fileSocket, this);
+                            new Thread(r).start();
+
+                            f = getNewFileAffectedUsers(req.getID(), null, true);
+
+                            for(ClientData client : f.getAffectedClients()){
+                                startServer.addUserToNotify(client);
+                            }
+
+                            f.setName(req.getF().getName());
+                            f.setUniqueName(req.getF().getUniqueName());
+
+                            startServer.setFile(f);
+                            startServer.setNotificationType("FILE_GROUP");
+                        }
                         else{
                             req.setMessage(createGroupMessage(req.getID(), req.getMessageContent(), groupID, req.isSendFile(), req.getF()));
 
+                            List<ClientData> clientData = getGroupAffectedByMessage(req.getID(), groupID);
 
-//                            for(ClientData client : getGroupAffectedByMessage(req.getID(), groupID)){
-//                                startServer.addUserToNotify(client);
-//                            }
-//                            startServer.setNotificationType("MESSAGE");
-//                            startServer.setUsername(req.getUsername());
-//                            startServer.setNotification(true);
+                            for(ClientData client : clientData){
+                                startServer.addUserToNotify(client);
+                            }
+                            startServer.setNotificationType("MESSAGE_GROUP");
+                            startServer.setNotification(true);
                         }
+                    } else if (req.getMessage().equalsIgnoreCase("GET_FILE")) {
+                        Socket fileSocket = new Socket(req.getFileSocketAddress(), req.getFileSocketPort());
+
+                        Runnable r = new SendFile(req.getF().getName(), fileSocket);
+                        new Thread(r).start();
+                    } else if (req.getMessage().equalsIgnoreCase("LIST_GROUP_FILES")) {
+                        groupID = getGroupIDFromBD(req.getGroupName(), req.getID());
+
+                        if(groupID == 0){
+                            req.setMessage("FAILURE - Não está em nenhum grupo com esse nome");
+                        }
+
+                        List<String> list = listGroupFiles();
+                        req.getGroupFiles().clear();
+                        for (String s : list) {
+                            req.addGroupFile(s);
+                        }
+
+                    } else if (req.getMessage().equalsIgnoreCase("LIST_CHAT_FILES")) {
+                        List<String> list = listChatFiles(req.getID(), getIDFromDB(req.getContact()));
+                        req.getChatFiles().clear();
+                        for (String s : list) {
+                            req.addChatFile(s);
+                        }
+                    } else if (req.getMessage().equalsIgnoreCase("DELETE_LAST_MSG_GROUP")) {
+                        groupID = getGroupIDFromBD(req.getGroupName(), req.getID());
+
+                        if(groupID == 0){
+                            req.setMessage("FAILURE - Não está em nenhum grupo com esse nome");
+                        }
+
+                        List<ServerData> list = deleteLastMessage(req.getID(), null, true, req.getF());
+                        if (req.getF().getName() != null) {
+                            startServer.setServersToNotify(list);
+                            startServer.setFilename(req.getF().getName());
+                            startServer.setDeleteFile(true);
+                        }
+                        req.setMessage("Mensagem/ficheiro eliminada/o com sucesso");
+                    } else if (req.getMessage().equalsIgnoreCase("DELETE_LAST_MSG")) {
+
+                        List<ServerData> list = deleteLastMessage(req.getID(), getIDFromDB(req.getContact()), false, req.getF());
+
+                        if (req.getF().getName() != null) {
+                            startServer.setServersToNotify(list);
+                            startServer.setFilename(req.getF().getName());
+                            startServer.setDeleteFile(true);
+                        }
+                        req.setMessage("Mensagem/ficheiro eliminada/o com sucesso");
                     }
 
                     //Envia resposta ao cliente
@@ -394,6 +466,181 @@ public class ThreadClient extends Thread{
         }
     }
 
+    public List<ServerData> deleteLastMessage(int id, Integer cid, boolean isGroup, File f) {
+        f.setName(null);
+        List<ServerData> serverData = new ArrayList<>();
+
+        try {
+            if (isGroup) {
+                PreparedStatement ps = conn.prepareStatement("SELECT * FROM Message WHERE User_user_id = ? AND group_id = ? ORDER BY timestamp DESC");
+                ps.setInt(1, id);
+                ps.setInt(2, groupID);
+
+                ResultSet rs = ps.executeQuery();
+
+                rs.next();
+
+                PreparedStatement ps1 = conn.prepareStatement("DELETE FROM Message WHERE message_id = ?");
+                ps1.setInt(1, rs.getInt(1));
+
+                ps1.executeUpdate();
+
+                PreparedStatement ps2 = conn.prepareStatement("SELECT * FROM UserInGroup WHERE group_group_id = ?", ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
+                ps2.setInt(1, groupID);
+
+                PreparedStatement ps3 = conn.prepareStatement(GET_USERS_QUERY);
+
+                ResultSet usersGroup = ps2.executeQuery();
+                ResultSet allUsers = ps3.executeQuery();
+                while (allUsers.next()) {
+                    while (usersGroup.next()) {
+                        if (allUsers.getInt(1) == usersGroup.getInt(3)) {
+                            serverData.add(new ServerData(InetAddress.getByName(allUsers.getString(7)), allUsers.getInt(6)));
+                        }
+                    }
+                    usersGroup.first();
+                }
+
+            } else {
+                PreparedStatement ps = conn.prepareStatement("SELECT * FROM Message WHERE User_user_id = ? ORDER BY timestamp DESC");
+                ps.setInt(1, id);
+
+                ResultSet rs = ps.executeQuery();
+
+                PreparedStatement ps1 = conn.prepareStatement("SELECT * FROM MessageRecipient WHERE recipient_id = ? AND sender_id = ?", ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
+                ps1.setInt(1, cid);
+                ps1.setInt(2, id);
+
+                ResultSet rs1 = ps1.executeQuery();
+
+                PreparedStatement ps2 = conn.prepareStatement("DELETE FROM MessageRecipient WHERE message_id = ?");
+                PreparedStatement ps3 = conn.prepareStatement("DELETE FROM Message WHERE message_id = ?");
+
+                boolean done = false;
+
+                int mid = -1;
+
+                while (rs.next()) {
+                    while (rs1.next()) {
+                        if (rs1.getInt(3) == rs.getInt(1)) {
+                            System.out.println("wrhijenhrtemiogh " + rs.getString(2));
+                            mid = rs.getInt(1);
+                            ps2.setInt(1, mid);
+                            ps3.setInt(1, mid);
+                            done = true;
+                            break;
+                        }
+                    }
+                    if (done) break;
+                    rs1.first();
+                }
+
+                if (done) {
+                    PreparedStatement files = conn.prepareStatement("SELECT * FROM File WHERE Message_message_id = ?");
+                    files.setInt(1, mid);
+
+                    ResultSet fileSet = files.executeQuery();
+
+                    if (fileSet.next()){
+                        f.setName(fileSet.getString(2));
+                        PreparedStatement deleteFile = conn.prepareStatement("DELETE FROM File WHERE Message_message_id = ?");
+                        deleteFile.setInt(1, mid);
+
+                        deleteFile.executeUpdate();
+                    }
+
+                    ps2.executeUpdate();
+                    ps3.executeUpdate();
+
+                    PreparedStatement ps4 = conn.prepareStatement("SELECT * FROM User WHERE user_id = ?");
+                    ps4.setInt(1, cid);
+
+                    ResultSet rs3 = ps4.executeQuery();
+                    rs3.next();
+
+                    serverData.add(
+                            new ServerData(
+                                    InetAddress.getByName(rs3.getString(7)),
+                                    rs3.getInt(6)
+                            )
+                    );
+                }
+            }
+        } catch (SQLException | UnknownHostException throwables) {
+            throwables.printStackTrace();
+        }
+        return serverData;
+    }
+
+    public List<String> listChatFiles(int id, int cid) {
+        List<String> chatFiles = new ArrayList<>();
+
+        try {
+            PreparedStatement ps = conn.prepareStatement("SELECT * FROM MessageRecipient WHERE sender_id = ? AND recipient_id = ?");
+            ps.setInt(1, id);
+            ps.setInt(2, cid);
+
+            PreparedStatement ps1 = conn.prepareStatement("SELECT * FROM MessageRecipient WHERE sender_id = ? AND recipient_id = ?");
+            ps1.setInt(1, cid);
+            ps1.setInt(2, id);
+
+            PreparedStatement ps2 = conn.prepareStatement("SELECT * FROM File", ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
+
+            ResultSet sentFiles = ps.executeQuery();
+            ResultSet receivedFiles = ps1.executeQuery();
+            ResultSet allFiles = ps2.executeQuery();
+
+            while (sentFiles.next()) {
+                while (allFiles.next()) {
+                    if (allFiles.getInt(3) == sentFiles.getInt(3)) {
+                        chatFiles.add(allFiles.getString(2));
+                    }
+                }
+                allFiles.first();
+            }
+
+            while (receivedFiles.next()) {
+                while(allFiles.next()) {
+                    if (allFiles.getInt(3) == receivedFiles.getInt(3)) {
+                        chatFiles.add(allFiles.getString(2));
+                    }
+                }
+                allFiles.first();
+            }
+
+        } catch (SQLException throwables) {
+            throwables.printStackTrace();
+        }
+
+        return chatFiles;
+    }
+
+    public List<String> listGroupFiles() {
+        List<String> groupFiles = new ArrayList<>();
+
+        try {
+            PreparedStatement ps = conn.prepareStatement("SELECT * FROM Message WHERE group_id = ?");
+            ps.setInt(1, groupID);
+
+            PreparedStatement ps1 = conn.prepareStatement("SELECT * FROM File", ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
+
+            ResultSet messages = ps.executeQuery();
+            ResultSet files = ps1.executeQuery();
+
+            while (messages.next()) {
+                while (files.next()) {
+                    if (messages.getInt(1) == files.getInt(3)) {
+                        groupFiles.add(files.getString(2));
+                    }
+                }
+                files.first();
+            }
+        } catch (SQLException throwables) {
+            throwables.printStackTrace();
+        }
+        return groupFiles;
+    }
+
     public StartServer getStartServer() { return startServer; }
 
     public boolean isUploaded() { return uploaded; }
@@ -403,7 +650,7 @@ public class ThreadClient extends Thread{
     private List<ClientData> getGroupAffectedByMessage(int id, int gid) {
         List<ClientData> clientData = new ArrayList<>();
         try {
-            PreparedStatement ps = conn.prepareStatement("SELECT * FROM UserInGroup WHERE group_group_id = ? AND accepted = true");
+            PreparedStatement ps = conn.prepareStatement("SELECT * FROM UserInGroup WHERE group_group_id = ? AND accepted = true", ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
             ps.setInt(1, gid);
 
             PreparedStatement ps1 = conn.prepareStatement("SELECT * FROM User WHERE NOT user_id = ?");
@@ -412,18 +659,26 @@ public class ThreadClient extends Thread{
             ResultSet usersAffected = ps.executeQuery();
             ResultSet allUsers = ps1.executeQuery();
 
-            //System.out.println("\nClientes a avisar: ");
+           // System.out.println("\nClientes a avisar: ");
 
             while (allUsers.next()) {
+               // System.out.println("allusers " + allUsers.getInt(1));
                 while (usersAffected.next()) {
+                    //System.out.println("\t" + usersAffected.getInt(3));
                     if (allUsers.getInt(1) == usersAffected.getInt(3)) {
-                        ClientData client = new ClientData(InetAddress.getByName("localhost"), allUsers.getInt(6), InetAddress.getByName(allUsers.getString(8)), Integer.parseInt(allUsers.getString(9)));
+
+                        ClientData client = new ClientData(
+                                InetAddress.getByName(allUsers.getString(7)),
+                                allUsers.getInt(6),
+                                InetAddress.getByName(allUsers.getString(8)),
+                                Integer.parseInt(allUsers.getString(9)));
                         clientData.add(client);
                         //System.out.println(client.getClientPort());
                     }
                 }
+                usersAffected.first();
             }
-            System.out.println("\n");
+           // System.out.println("\n");
 
 
         } catch (SQLException | UnknownHostException throwables) {
@@ -455,7 +710,7 @@ public class ThreadClient extends Thread{
         return clientData;
     }
 
-    private File getNewFileAffectedUsers(String contact, boolean isGroup) {
+    private File getNewFileAffectedUsers(int id, String contact, boolean isGroup) {
         File f = new File();
         try {
             if (!isGroup) {
@@ -464,10 +719,36 @@ public class ThreadClient extends Thread{
 
                 ResultSet rs = ps.executeQuery();
                 rs.next();
-                f.addAffectedClients(new ClientData(InetAddress.getByName("localhost"), rs.getInt(6),  InetAddress.getByName(rs.getString(8)), Integer.parseInt(rs.getString(9))));
-                f.setLocationAddress(socket.getLocalAddress());
-                f.setLocationPort(socket.getLocalPort());
+                f.addAffectedClients(new ClientData(InetAddress.getByName(rs.getString(7)), rs.getInt(6),  InetAddress.getByName(rs.getString(8)), Integer.parseInt(rs.getString(9))));
             }
+            else {
+                PreparedStatement ps = conn.prepareStatement("SELECT * FROM `UserInGroup` WHERE group_group_id = ? AND NOT group_user_id = ? AND accepted = true", ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
+                ps.setInt(1, groupID);
+                ps.setInt(2, id);
+
+                ResultSet usersingroup = ps.executeQuery();
+
+                PreparedStatement ps1 = conn.prepareStatement(GET_USERS_QUERY);
+
+                ResultSet users = ps1.executeQuery();
+
+                while(users.next()) {
+                    while (usersingroup.next()) {
+                        if (users.getInt(1) == usersingroup.getInt(3)) {
+                            ClientData client = new ClientData(
+                                    InetAddress.getByName(users.getString(7)),
+                                    users.getInt(6),
+                                    InetAddress.getByName(users.getString(8)),
+                                    Integer.parseInt(users.getString(9)));
+                            f.addAffectedClients(client);
+                        }
+                    }
+                    usersingroup.first();
+                }
+            }
+
+            f.setLocationAddress(socket.getLocalAddress());
+            f.setLocationPort(socket.getLocalPort());
         } catch (SQLException | UnknownHostException throwables) {
             throwables.printStackTrace();
         }
@@ -559,7 +840,7 @@ public class ThreadClient extends Thread{
             int mid = 0;
             if (rs2.next()) {
                 mid = rs2.getInt(1);
-                f.setUniqueName(f.getName() + "_" + mid);
+                f.setUniqueName(mid + "_" + f.getName());
             }
 
             if (isFile) {
@@ -711,11 +992,13 @@ public class ThreadClient extends Thread{
                 return ans;
             }
 
-            PreparedStatement ps = conn.prepareStatement("UPDATE User SET session = ?, server_address = ?, server_port = ? WHERE username = ?");
+            PreparedStatement ps = conn.prepareStatement("UPDATE User SET session = ?, server_address = ?, server_port = ?, client_address = ?, client_port = ? WHERE username = ?");
             ps.setBoolean(1, true);
             ps.setString(2, addr.replace("/", ""));
             ps.setInt(3, port);
-            ps.setString(4, u);
+            ps.setString(4, socket.getInetAddress().toString().replace("/", ""));
+            ps.setString(5, Integer.toString(socket.getPort()));
+            ps.setString(6, u);
 
             while (rs.next()) {
                 if (u.equalsIgnoreCase(rs.getString(3)) && p.equalsIgnoreCase(rs.getString(2))) {
@@ -822,7 +1105,7 @@ public class ThreadClient extends Thread{
         groups.clear();
 
         try {
-            ResultSet rs = stmt.executeQuery("SELECT * FROM Useringroup WHERE accepted = true AND group_user_id = " + id);
+            ResultSet rs = stmt.executeQuery("SELECT * FROM UserInGroup WHERE accepted = true AND group_user_id = " + id);
 
             while (rs.next()) {
                 groups.add(rs.getInt(1));
@@ -1194,7 +1477,7 @@ public class ThreadClient extends Thread{
             idGrupo = rs1.getInt(1);
 
 
-            PreparedStatement ps = conn.prepareStatement("SELECT * FROM Useringroup WHERE group_group_id = ? AND accepted =  true");
+            PreparedStatement ps = conn.prepareStatement("SELECT * FROM UserInGroup WHERE group_group_id = ? AND accepted =  true");
             ps.setInt(1, idGrupo);
 
             ResultSet rs = ps.executeQuery();

@@ -24,7 +24,6 @@ public class ReceiveFile implements Runnable{
     public ReceiveFile(String name, ServerSocket fileSocket) {
         fileName = name;
         serverSocket = fileSocket;
-        replicateFile = true;
     }
 
     @Override
@@ -32,10 +31,10 @@ public class ReceiveFile implements Runnable{
         System.out.println(fileName);
         File localDirectory;
         String localFilePath = null;
-        InputStream in;
+        InputStream in = null;
         Socket client;
         byte [] buffer = new byte[MAX_SIZE];
-        FileOutputStream localFileOutputStream;
+        FileOutputStream localFileOutputStream = null;
 
         localDirectory = new File(("." + File.separator + "DownloadsChat").trim());
 
@@ -69,33 +68,38 @@ public class ReceiveFile implements Runnable{
 
             in = client.getInputStream();
 
-            int size = in.read(buffer);
-            int countBytes = 0;
+
             int nbytes;
             do{
                 nbytes = in.read(buffer);
-                countBytes += nbytes;
+
                 System.out.println("bytes lidos: " + nbytes);
                 if (nbytes > 0) {
                     localFileOutputStream.write(buffer, 0, nbytes);
                 }
-
-            }while(countBytes < size);
+                if (nbytes == -1) break;
+            }while(true);
 
             System.out.println("Ficheiro recebido com sucesso.");
-            if (!replicateFile) {
-                threadClient.setUploaded(true);
-                threadClient.getStartServer().setNewFile(true);
-            }
 
-            in.close();
-            localFileOutputStream.close();
-            serverSocket.close();
+            threadClient.getStartServer().setNewFile(true);
+
         }catch(IOException e) {
             if (localFilePath == null) {
                 System.out.println("Ocorreu a excepcao {" + e + "} ao obter o caminho canonico para o ficheiro local!");
             } else {
                 System.out.println("Ocorreu a excepcao {" + e + "} ao tentar criar o ficheiro " + localFilePath + "!");
+            }
+        } finally {
+            try {
+                if (serverSocket != null)
+                    serverSocket.close();
+                if (in != null)
+                    in.close();
+                if (localFileOutputStream != null)
+                    localFileOutputStream.close();
+            } catch (IOException e) {
+                e.printStackTrace();
             }
         }
     }
