@@ -28,6 +28,7 @@ public class StartServer implements Runnable {
     private static String notificationMessage;
     private static String notificationType;
     private static String username;
+    private static String groupName;
 
     public StartServer() {
 
@@ -214,6 +215,7 @@ public class StartServer implements Runnable {
                         sendFileNotif = false;
                     }
                     request.setUsername(username);
+                    request.setGroupName(groupName);
                     request.setUserToNotify(client);
                     request.setNotificationMessage(notificationMessage);
                     request.setNotificationType(notificationType);
@@ -332,4 +334,6 @@ public class StartServer implements Runnable {
     public void setUsername(String username) {
         StartServer.username = username;
     }
+
+    public void setGroupName(String groupName) { StartServer.groupName = groupName; }
 }

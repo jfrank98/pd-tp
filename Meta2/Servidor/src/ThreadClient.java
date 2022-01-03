@@ -153,6 +153,10 @@ public class ThreadClient extends Thread{
                     else if (req.getMessage().equalsIgnoreCase("ADD_CONTACT")){
                         req.setMessage(addContact(req.getContact(), req.getID(), false));
 
+                        startServer.setUsername(req.getUsername());
+                        startServer.addUserToNotify(getUserAffectedByNotification(req.getContact()));
+                        startServer.setNotificationType("ADD_CONTACT");
+                        startServer.setNotification(true);
                     }
                     else if (req.getMessage().equalsIgnoreCase("REMOVE_CONTACT")){
                         req.setMessage(removeContact(req.getContact(), req.getID()));
@@ -216,6 +220,13 @@ public class ThreadClient extends Thread{
                     }
                     else if (req.getMessage().equalsIgnoreCase("JOIN_GROUP")){
                         req.setMessage(joinGroup(req.getGroupName(), req.getID()));
+                        System.out.println("\nid admin do grupo. " + adminID);
+
+                        startServer.setUsername(req.getUsername());
+                        startServer.setGroupName(req.getGroupName());
+                        startServer.addUserToNotify(getUserAffectedByNotification(getUsernameByID(adminID)));
+                        startServer.setNotificationType("JOIN_GROUP");
+                        startServer.setNotification(true);
                     }
                     else if (req.getMessage().equalsIgnoreCase("CREATE_GROUP")){
                         req.setMessage(createGroup(req.getGroupName(), req.getID()));
@@ -447,10 +458,11 @@ public class ThreadClient extends Thread{
                     rs.getInt(6),
                     InetAddress.getByName(rs.getString(8)),
                     Integer.parseInt(rs.getString(9)));
-            System.out.println(clientData.getPort());
         } catch (SQLException | UnknownHostException throwables) {
             throwables.printStackTrace();
         }
+
+        System.out.println(clientData.getClientPort());
 
         return clientData;
     }
@@ -758,7 +770,7 @@ public class ThreadClient extends Thread{
                     if(!exists){
                         //altera username na base de dados
                         ps.executeUpdate();
-                        ans = "SUCCESS";
+                        ans = "SUCCESS - Username alterado.";
                     }
                     else{
                         ans = "FAILURE - Esse username já está a ser usado";
@@ -788,7 +800,7 @@ public class ThreadClient extends Thread{
                 if (u.equalsIgnoreCase(rs.getString(3))) {
                     //altera password na base de dados
                     ps.executeUpdate();
-                    ans = "SUCCESS";
+                    ans = "SUCCESS - Password alterada.";
                     break;
                 }
             }
@@ -1057,7 +1069,7 @@ public class ThreadClient extends Thread{
             ps3.setInt(2, id);
             ps3.executeUpdate();
 
-            ans = "SUCCESS";
+            ans = "SUCCESS - Contacto eliminado.";
 
         }catch(SQLException e){
             System.out.println("\n" + e);
@@ -1128,7 +1140,7 @@ public class ThreadClient extends Thread{
         listaG.clear();
 
         try {
-            ResultSet rs = stmt.executeQuery("SELECT * FROM UserInGroup WHERE group_user_id = " + id);
+            ResultSet rs = stmt.executeQuery("SELECT * FROM UserInGroup WHERE group_user_id = " + id + " AND accepted = true");
             ResultSet rs2;
             Statement stmt2 = conn.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
 
@@ -1254,7 +1266,7 @@ public class ThreadClient extends Thread{
             ps.setBoolean(4, adminID == id);
 
             ps.executeUpdate();
-            ans = "SUCCESS";
+            ans = "SUCCESS - Pedido de adesão enviado.";
 
         }catch(SQLException e){
             System.out.println("\n" + e);
@@ -1603,13 +1615,13 @@ public class ThreadClient extends Thread{
 
                 if (newGroup) {
                     ps.executeUpdate();
-                    ans = "SUCCESS";
+                    ans = "SUCCESS - Grupo criado.";
                 }
             }
 
             else {
                 ps.executeUpdate();
-                ans = "SUCCESS";
+                ans = "SUCCESS - Grupo criado.";
             }
 
         } catch (SQLException e) {
@@ -1721,7 +1733,7 @@ public class ThreadClient extends Thread{
                     if(!exists){
                         //altera nome do grupo na base de dados
                         ps.executeUpdate();
-                        ans = "SUCCESS";
+                        ans = "SUCCESS - Nome do grupo alterado.";
                     }
                     else{
                         ans = "FAILURE - Já tem um grupo com esse nome.";
@@ -1794,7 +1806,7 @@ public class ThreadClient extends Thread{
             ps1.setInt(2, contactID);
 
             ps1.executeUpdate();
-            ans = "SUCCESS";
+            ans = "SUCCESS - Membro removido do grupo.";
 
         }catch(SQLException e){
             System.out.println("\n" + e);
@@ -1831,7 +1843,7 @@ public class ThreadClient extends Thread{
 
             ps2.executeUpdate();
 
-            ans = "SUCCESS";
+            ans = "SUCCESS - Grupo eliminado.";
 
         }catch(SQLException e){
             System.out.println("\n" + e);
@@ -1877,7 +1889,7 @@ public class ThreadClient extends Thread{
             ps1.setInt(2, groupID);
 
             ps1.executeUpdate();
-            ans = "SUCCESS";
+            ans = "SUCCESS - Saiu do grupo.";
 
         }catch(SQLException e){
             System.out.println("\n" + e);

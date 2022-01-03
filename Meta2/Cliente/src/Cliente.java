@@ -1015,7 +1015,7 @@ public class Cliente implements Runnable {
     public static String getNewUsername() {
         Scanner sc = new Scanner(System.in);
 
-        if (request.getMessage().equalsIgnoreCase("ADD_CONTACT") || request.getMessage().equalsIgnoreCase("REMOVE_CONTACT") || request.getMessage().equalsIgnoreCase("REMOVE_MEMBER") || request.getMessage().equalsIgnoreCase("ACCEPT_CONTACT_REQUEST") || request.getMessage().equalsIgnoreCase("REJECT_CONTACT_REQUEST"))
+        if (request.getMessage().equalsIgnoreCase("ADD_CONTACT") || request.getMessage().equalsIgnoreCase("REMOVE_CONTACT") || request.getMessage().equalsIgnoreCase("REMOVE_MEMBER") || request.getMessage().equalsIgnoreCase("ACCEPT_CONTACT_REQUEST") || request.getMessage().equalsIgnoreCase("REJECT_CONTACT_REQUEST") || request.getMessage().equalsIgnoreCase("REJECT_GROUP_REQUEST") || request.getMessage().equalsIgnoreCase("ACCEPT_GROUP_REQUEST"))
             System.out.print("\nNome contacto: ");
         else if (request.getMessage().equalsIgnoreCase("SEARCH_USER"))
             System.out.print("\nUtilizador: ");

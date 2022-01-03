@@ -33,6 +33,12 @@ public class NotificationsThread extends Thread{
                 } else if (type.equalsIgnoreCase("FILE")){
                     System.out.print("\nNovo ficheiro \"" + req.getF().getUniqueName() + "\" disponibilizdo por " + req.getUsername());
                 }
+                else if (type.equalsIgnoreCase("ADD_CONTACT")){
+                    System.out.println("\nRecebeu um novo pedido de contacto de " + req.getUsername());
+                }
+                else if (type.equalsIgnoreCase("JOIN_GROUP")){
+                    System.out.println("\nRecebeu um novo pedido de adesão de " + req.getUsername() + " para o grupo " + req.getGroupName());
+                }
             } catch (IOException | ClassNotFoundException e) {
                 e.printStackTrace();
             }
