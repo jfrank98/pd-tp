@@ -1,8 +1,13 @@
 import java.io.*;
 import java.net.*;
+import java.rmi.Naming;
+import java.rmi.RemoteException;
+import java.rmi.registry.LocateRegistry;
+import java.rmi.registry.Registry;
+import java.rmi.server.UnicastRemoteObject;
 import java.util.*;
 
-public class GRDS implements Runnable{
+public class GRDS extends UnicastRemoteObject implements InterfaceGRDS, Runnable, Serializable{
 
     private static final int MAX_SIZE = 4096;
     private static final String SERVER_REQUEST = "SERVER_GET_ADDR_PORT_TCP";
@@ -12,8 +17,10 @@ public class GRDS implements Runnable{
     private static List<ServerData> servers = new ArrayList<>();
     private static List<ClientData> allClients = new ArrayList<>();
     private static int server_index = 0;
+    private static List<GRDS_ObserverI> observers;
 
-    public GRDS(){
+    public GRDS() throws RemoteException{
+
     }
 
     public static void main(String[] args)  {
@@ -33,11 +40,27 @@ public class GRDS implements Runnable{
         final List<ServerData> tempServers = new ArrayList<>();
         String filename = null;
 
+        observers = new ArrayList<>();
 
         //Verifica se recebeu os argumentos necessários: porto de escuta
         if(args.length != 1){
             System.out.println("Sintaxe: java GRDS listeningPort");
             return;
+        }
+
+        //Inicia serviço RMI
+        try {
+            System.out.println("Tentativa de lancamento do registry no porto " +
+                    Registry.REGISTRY_PORT + "...");
+
+            LocateRegistry.createRegistry(Registry.REGISTRY_PORT);
+
+            System.out.println("Registry lancado!");
+            GRDS grds = new GRDS();
+            String registration = "rmi://localhost/GRDS";
+            Naming.rebind(registration, grds);
+        } catch (MalformedURLException | RemoteException e) {
+            e.printStackTrace();
         }
 
         try{
@@ -72,6 +95,12 @@ public class GRDS implements Runnable{
                     newServer.setId(serverID);
                     newServer.setOnline(true);
                     serverID++;
+
+                    if (observers.isEmpty()) System.out.println("ola?");
+                    for (GRDS_ObserverI observer : observers) {
+                        System.out.println("Observadores notificados");
+                        observer.newServer(newServer);
+                    }
 
                     synchronized (servers) {
                         servers.add(newServer);
@@ -150,6 +179,12 @@ public class GRDS implements Runnable{
                         data = serialize(req);
                     }
 
+                    if (notified || notifiednewfile || deleteFile){
+                        for(GRDS_ObserverI observer : observers){
+                            observer.newNotification(notificationRequest.getNotificationType());
+                        }
+                    }
+
                     packet.setData(data, 0, data.length);
                     socket.send(packet);
                 }
@@ -162,6 +197,10 @@ public class GRDS implements Runnable{
                 else if (req.getMessage().equals(CLIENT_REQUEST)){
                     boolean sent = false;
                     int nOffline = 0;
+
+                    for (GRDS_ObserverI observer : observers) {
+                        observer.newClientServerRequest(packet.getAddress(), packet.getPort());
+                    }
 
                     System.out.println("\nDados do servidor enviados ao cliente:");
                     synchronized (servers) {
@@ -319,6 +358,15 @@ public class GRDS implements Runnable{
 
                         if (s.getPeriods() == 3) {
                             System.out.println("\nO servidor com id " + s.getId() + " foi removido.");
+
+                            for(GRDS_ObserverI observer : observers){
+                                try {
+                                    observer.serverRemoved(s);
+                                } catch (RemoteException e) {
+                                    e.printStackTrace();
+                                }
+                            }
+
                             it.remove();
                             server_index--;
                             if (!it.hasNext()) break;
@@ -326,6 +374,19 @@ public class GRDS implements Runnable{
                     }
                 }
             }
+        }
+    }
+
+    @Override
+    public synchronized List<ServerData> getServers() throws RemoteException {
+        return servers;
+    }
+
+    @Override
+    public void addServersObserver(GRDS_ObserverI observer) throws RemoteException {
+        if (!observers.contains(observer)){
+            observers.add(observer);
+            System.out.println("Novo observador");
         }
     }
 }
