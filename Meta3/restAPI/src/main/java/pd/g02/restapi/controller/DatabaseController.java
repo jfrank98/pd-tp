@@ -1,6 +1,5 @@
 package pd.g02.restapi.controller;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import pd.g02.restapi.constants.Constants;
@@ -12,19 +11,24 @@ import java.util.List;
 
 @RestController
 public class DatabaseController {
-private Connection conn = Constants.CONNECTION;
+    private final Connection conn = Constants.CONNECTION;
 
-    @PostMapping("change_username")
-    public ResponseEntity changeUsername(@RequestParam("new_username") String newUsername, @RequestHeader("Authorization") String token) {
+    @PostMapping(value = {"change_username","change_username/{lang}"})
+    public ResponseEntity changeUsername(@RequestParam("new_username") String newUsername,
+                                         @RequestHeader("Authorization") String token,
+                                         @PathVariable(value = "lang", required = false) String lang) {
+        if (lang == null) lang = "en";
+        if (!lang.equalsIgnoreCase("en") && !lang.equalsIgnoreCase("pt")) return Constants.INVALID_LANGUAGE(lang);
+
         String currentUsername;
 
         User user = getUserInfo(token);
-        if (user == null) return Constants.INVALID_TOKEN;
+        if (user == null) return Constants.INVALID_TOKEN(lang);
 
 
         if ((System.currentTimeMillis() - user.getTokenCreationTime()) / 1000 >= 120) {
             SessionController.userList.remove(user);
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Token emission over 2 minutes ago, please login again.");
+            return Constants.OLD_TOKEN(lang);
         }
         currentUsername = user.getUsername();
 
@@ -39,23 +43,27 @@ private Connection conn = Constants.CONNECTION;
             ps1.setString(1, newUsername);
 
             if (ps1.executeQuery().next())
-                return ResponseEntity.status(HttpStatus.CONFLICT).body("Provided new username already exists.");
+                return Constants.NEW_USERNAME_INVALID(lang);
 
             ps.executeUpdate();
         } catch (SQLException throwables) {
             throwables.printStackTrace();
         }
 
-        return ResponseEntity.ok("Username changed with success.");
+        return Constants.USERNAME_CHANGED(lang);
     }
 
-    @GetMapping("contacts")
-    public ResponseEntity getContacts(@RequestHeader("Authorization") String token) {
+    @GetMapping(value = {"contacts", "contacts/{lang}"})
+    public ResponseEntity getContacts(@RequestHeader("Authorization") String token, @PathVariable(value = "lang", required = false) String lang) {
+
+        if (lang == null) lang = "en";
+        if (!lang.equalsIgnoreCase("en") && !lang.equalsIgnoreCase("pt")) return Constants.INVALID_LANGUAGE(lang);
+
         User user = getUserInfo(token);
-        if (user == null) return Constants.INVALID_TOKEN;
+        if (user == null) return Constants.INVALID_TOKEN(lang);
 
         if (user.tokenIsOld()) {
-            return Constants.OLD_TOKEN;
+            return Constants.OLD_TOKEN(lang);
         }
         List<String> userContactsList = new ArrayList<>();
 
@@ -75,7 +83,7 @@ private Connection conn = Constants.CONNECTION;
 
             PreparedStatement psUsername = conn.prepareStatement("SELECT * FROM User WHERE user_id = ?");
 
-            while(contacts.next()) {
+            while (contacts.next()) {
                 psUsername.setInt(1, contacts.getInt(2));
                 ResultSet username = psUsername.executeQuery();
                 username.next();
@@ -87,28 +95,34 @@ private Connection conn = Constants.CONNECTION;
             throwables.printStackTrace();
         }
 
-        if (userContactsList.isEmpty()) return ResponseEntity.ok("You have no contacts.");
+        if (userContactsList.isEmpty()) return Constants.NO_CONTACTS(lang);
         return ResponseEntity.ok(userContactsList);
     }
 
-    @PostMapping("delete_contact")
-    public ResponseEntity deleteContact(@RequestParam("contact") String contact, @RequestHeader("Authorization") String token) {
+    @PostMapping(value = {"delete_contact", "delete_contact/{lang}"})
+    public ResponseEntity deleteContact(@RequestParam("contact") String contact,
+                                        @RequestHeader("Authorization") String token,
+                                        @PathVariable(value = "lang", required = false) String lang) {
+
+        if (lang == null) lang = "en";
+        if (!lang.equalsIgnoreCase("en") && !lang.equalsIgnoreCase("pt")) return Constants.INVALID_LANGUAGE(lang);
+
         User user = getUserInfo(token);
-        if (user == null) return Constants.INVALID_TOKEN;
+        if (user == null) return Constants.INVALID_TOKEN(lang);
 
         if (user.tokenIsOld()) {
-            return Constants.OLD_TOKEN;
+            return Constants.OLD_TOKEN(lang);
         }
 
         int userID = getUserId(user.getUsername());
         int contactID = getUserId(contact);
 
-        if (contactID == -1) return Constants.INVALID_CONTACT;
+        if (contactID == -1) return Constants.INVALID_CONTACT(lang);
 
         try {
             PreparedStatement ps1 = conn.prepareStatement("SELECT * FROM UserContact");
             if (!ps1.executeQuery().next()) {
-                return Constants.NO_CONTACTS;
+                return Constants.NO_CONTACTS(lang);
             }
 
             PreparedStatement ps = conn.prepareStatement("DELETE FROM UserContact WHERE user_id in (?,?) AND contact_id in (?,?) AND accepted = true");
@@ -122,16 +136,19 @@ private Connection conn = Constants.CONNECTION;
         } catch (SQLException throwables) {
             throwables.printStackTrace();
         }
-        return ResponseEntity.ok("Contact deleted with success.");
+        return Constants.CONTACT_DELETED(lang);
     }
 
-    @GetMapping("groups")
-    public ResponseEntity listGroups(@RequestHeader("Authorization") String token) {
+    @GetMapping(value = {"groups", "groups/{lang}"})
+    public ResponseEntity listGroups(@RequestHeader("Authorization") String token, @PathVariable(value = "lang", required = false) String lang) {
+        if (lang == null) lang = "en";
+        if (!lang.equalsIgnoreCase("en") && !lang.equalsIgnoreCase("pt")) return Constants.INVALID_LANGUAGE(lang);
+
         User user = getUserInfo(token);
-        if (user == null) return Constants.INVALID_TOKEN;
+        if (user == null) return Constants.INVALID_TOKEN(lang);
 
         if (user.tokenIsOld()) {
-            return Constants.OLD_TOKEN;
+            return Constants.OLD_TOKEN(lang);
         }
 
         List<String> userGroupsList = new ArrayList<>();
@@ -146,11 +163,11 @@ private Connection conn = Constants.CONNECTION;
             ps.setInt(2, userID);
 
             ResultSet userInGroups = ps.executeQuery();
-            if (!userInGroups.next()) return Constants.NO_GROUPS;
+            if (!userInGroups.next()) return Constants.NO_GROUPS(lang);
 
             PreparedStatement ps1 = conn.prepareStatement("SELECT * FROM `Group` WHERE group_id = ?");
 
-            while(userInGroups.next()) {
+            while (userInGroups.next()) {
                 ps1.setInt(1, userInGroups.getInt(1));
                 ResultSet group = ps1.executeQuery();
                 group.next();
@@ -162,18 +179,23 @@ private Connection conn = Constants.CONNECTION;
         return ResponseEntity.ok(userGroupsList);
     }
 
-    @GetMapping("messages")
-    public ResponseEntity getMessagesContact(@RequestHeader("Authorization") String token, @RequestParam("contact") String contact) {
+    @GetMapping(value = {"messages", "messages/{lang}"})
+    public ResponseEntity getMessagesContact(@RequestHeader("Authorization") String token,
+                                             @RequestParam("contact") String contact,
+                                             @PathVariable(value = "lang", required = false) String lang) {
+        if (lang == null) lang = "en";
+        if (!lang.equalsIgnoreCase("en") && !lang.equalsIgnoreCase("pt")) return Constants.INVALID_LANGUAGE(lang);
+
         User user = getUserInfo(token);
-        if (user == null) return Constants.INVALID_TOKEN;
+        if (user == null) return Constants.INVALID_TOKEN(lang);
 
         if (user.tokenIsOld()) {
-            return Constants.OLD_TOKEN;
+            return Constants.OLD_TOKEN(lang);
         }
 
         int userID = getUserId(user.getUsername());
         int contactID = getUserId(contact);
-        if (contactID == -1) return Constants.INVALID_CONTACT;
+        if (contactID == -1) return Constants.INVALID_CONTACT(lang);
 
         List<String> messageHistory = new ArrayList<>();
 
@@ -185,9 +207,9 @@ private Connection conn = Constants.CONNECTION;
             ResultSet contacts = ps3.executeQuery();
 
             if (!contacts.next())
-                return Constants.NO_CONTACTS;
+                return Constants.NO_CONTACTS(lang);
 
-            PreparedStatement ps = conn.prepareStatement("SELECT * FROM MessageRecipient WHERE recipient_id = ? AND sender_id = ?");
+            PreparedStatement ps = conn.prepareStatement("SELECT * FROM MessageRecipient WHERE recipient_id = ? AND sender_id = ?", ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
             ps.setInt(1, userID);
             ps.setInt(2, contactID);
 
@@ -213,17 +235,24 @@ private Connection conn = Constants.CONNECTION;
             throwables.printStackTrace();
         }
 
-        if (messageHistory.isEmpty()) return ResponseEntity.status(HttpStatus.CONFLICT).body("You don't have any messages.");
+        if (messageHistory.isEmpty())
+            return Constants.NO_MESSAGES(lang);
         return ResponseEntity.ok(messageHistory);
     }
 
-    @GetMapping("messages_group")
-    public ResponseEntity getMessagesGroup(@RequestHeader("Authorization") String token, @RequestParam("group") String group) {
+    @GetMapping(value = {"messages_group","messages_group/{lang}"})
+    public ResponseEntity getMessagesGroup(@RequestHeader("Authorization") String token,
+                                           @RequestParam("group") int group,
+                                           @PathVariable(value = "lang", required = false) String lang) {
         User user = getUserInfo(token);
-        if (user == null) return Constants.INVALID_TOKEN;
+
+        if (lang == null) lang = "en";
+        if (!lang.equalsIgnoreCase("en") && !lang.equalsIgnoreCase("pt")) return Constants.INVALID_LANGUAGE(lang);
+
+        if (user == null) return Constants.INVALID_TOKEN(lang);
 
         if (user.tokenIsOld()) {
-            return Constants.OLD_TOKEN;
+            return Constants.OLD_TOKEN(lang);
         }
 
         int userID = getUserId(user.getUsername());
@@ -231,25 +260,34 @@ private Connection conn = Constants.CONNECTION;
         List<String> groupHistory = new ArrayList<>();
 
         try {
+            PreparedStatement ps3 = conn.prepareStatement("SELECT * FROM UserInGroup WHERE group_group_id = ? AND accepted = true AND group_user_id = ? ");
+            ps3.setInt(1, group);
+            ps3.setInt(2, userID);
+
+            ResultSet groupState = ps3.executeQuery();
+            if (!groupState.next()) return Constants.NOT_IN_GROUP(lang);
+
+
             PreparedStatement ps = conn.prepareStatement("SELECT * FROM Message WHERE group_id = ? AND NOT User_user_id = ?");
-            ps.setInt(1, Integer.parseInt(group));
+            ps.setInt(1, group);
             ps.setInt(2, userID);
 
             ResultSet rs = ps.executeQuery();
 
             PreparedStatement ps2 = conn.prepareStatement("SELECT * FROM File WHERE Message_message_id = ?");
 
-            while (rs.next()){
+            while (rs.next()) {
                 ps2.setInt(1, rs.getInt(1));
                 ResultSet isfile = ps2.executeQuery();
                 if (!isfile.next())
-                    groupHistory.add(rs.getString(2));
+                    groupHistory.add(rs.getString(3) + rs.getString(2));
             }
         } catch (SQLException e) {
             e.printStackTrace();
         }
 
-        if (groupHistory.isEmpty()) return ResponseEntity.status(HttpStatus.CONFLICT).body("There are no messages from the provided group.");
+        if (groupHistory.isEmpty())
+            return Constants.NO_GROUP_MESSAGES(lang);
         return ResponseEntity.ok(groupHistory);
     }
 

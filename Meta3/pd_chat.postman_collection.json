@@ -1,0 +1,726 @@
+{
+	"info": {
+		"_postman_id": "f907efea-e687-495c-829d-385772383464",
+		"name": "pd_chat",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "pt",
+			"item": [
+				{
+					"name": "Contact Messages",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "asd_465",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:4200/messages/pt?contact=qwe",
+							"host": [
+								"localhost"
+							],
+							"port": "4200",
+							"path": [
+								"messages",
+								"pt"
+							],
+							"query": [
+								{
+									"key": "contact",
+									"value": "qwe"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Contact",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "bruh_469",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "localhost:4200/delete_contact/pt?contact=asd",
+							"host": [
+								"localhost"
+							],
+							"port": "4200",
+							"path": [
+								"delete_contact",
+								"pt"
+							],
+							"query": [
+								{
+									"key": "contact",
+									"value": "asd"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Contacts",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "bruh_817",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:4200/contacts/pt",
+							"host": [
+								"localhost"
+							],
+							"port": "4200",
+							"path": [
+								"contacts",
+								"pt"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Change Username",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "bruh_379",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "localhost:4200/change_username/pt?new_username=bruh",
+							"host": [
+								"localhost"
+							],
+							"port": "4200",
+							"path": [
+								"change_username",
+								"pt"
+							],
+							"query": [
+								{
+									"key": "new_username",
+									"value": "bruh"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Token",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "bruh_643",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"username\": \"asd\",\r\n    \"password\": \"asd\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:4200/session/pt",
+							"host": [
+								"localhost"
+							],
+							"port": "4200",
+							"path": [
+								"session",
+								"pt"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Groups",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "bruh_643",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:4200/groups/pt",
+							"host": [
+								"localhost"
+							],
+							"port": "4200",
+							"path": [
+								"groups",
+								"pt"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Group Messages ",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "asd_117",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:4200/messages_group/pt?group=1",
+							"host": [
+								"localhost"
+							],
+							"port": "4200",
+							"path": [
+								"messages_group",
+								"pt"
+							],
+							"query": [
+								{
+									"key": "group",
+									"value": "1"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "en",
+			"item": [
+				{
+					"name": "Contact Messages",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "asd_465",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:4200/messages/en?contact=qwe",
+							"host": [
+								"localhost"
+							],
+							"port": "4200",
+							"path": [
+								"messages",
+								"en"
+							],
+							"query": [
+								{
+									"key": "contact",
+									"value": "qwe"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Contact",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "bruh_469",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "localhost:4200/delete_contact/en?contact=asd",
+							"host": [
+								"localhost"
+							],
+							"port": "4200",
+							"path": [
+								"delete_contact",
+								"en"
+							],
+							"query": [
+								{
+									"key": "contact",
+									"value": "asd"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Contacts",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "bruh_469",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:4200/contacts/en",
+							"host": [
+								"localhost"
+							],
+							"port": "4200",
+							"path": [
+								"contacts",
+								"en"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Change Username",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "bruh_379",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "localhost:4200/change_username/en?new_username=bruh",
+							"host": [
+								"localhost"
+							],
+							"port": "4200",
+							"path": [
+								"change_username",
+								"en"
+							],
+							"query": [
+								{
+									"key": "new_username",
+									"value": "bruh"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Token",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "bruh_643",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"username\": \"asd\",\r\n    \"password\": \"asd\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:4200/session/en",
+							"host": [
+								"localhost"
+							],
+							"port": "4200",
+							"path": [
+								"session",
+								"en"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Groups",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "bruh_643",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:4200/groups/en",
+							"host": [
+								"localhost"
+							],
+							"port": "4200",
+							"path": [
+								"groups",
+								"en"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Group Messages ",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "asd_117",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:4200/messages_group/en?group=1",
+							"host": [
+								"localhost"
+							],
+							"port": "4200",
+							"path": [
+								"messages_group",
+								"en"
+							],
+							"query": [
+								{
+									"key": "group",
+									"value": "1"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "default",
+			"item": [
+				{
+					"name": "Contact Messages",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "asd_465",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:4200/messages?contact=qwe",
+							"host": [
+								"localhost"
+							],
+							"port": "4200",
+							"path": [
+								"messages"
+							],
+							"query": [
+								{
+									"key": "contact",
+									"value": "qwe"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Contact",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "bruh_469",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "localhost:4200/delete_contact?contact=asd",
+							"host": [
+								"localhost"
+							],
+							"port": "4200",
+							"path": [
+								"delete_contact"
+							],
+							"query": [
+								{
+									"key": "contact",
+									"value": "asd"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Contacts",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "bruh_469",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:4200/contacts",
+							"host": [
+								"localhost"
+							],
+							"port": "4200",
+							"path": [
+								"contacts"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Change Username",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "bruh_379",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "localhost:4200/change_username?new_username=bruh",
+							"host": [
+								"localhost"
+							],
+							"port": "4200",
+							"path": [
+								"change_username"
+							],
+							"query": [
+								{
+									"key": "new_username",
+									"value": "bruh"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Token",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "bruh_643",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"username\": \"asd\",\r\n    \"password\": \"asd\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "localhost:4200/session",
+							"host": [
+								"localhost"
+							],
+							"port": "4200",
+							"path": [
+								"session"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Groups",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "bruh_643",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:4200/groups",
+							"host": [
+								"localhost"
+							],
+							"port": "4200",
+							"path": [
+								"groups"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Group Messages ",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "asd_117",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "localhost:4200/messages_group/?group=1",
+							"host": [
+								"localhost"
+							],
+							"port": "4200",
+							"path": [
+								"messages_group",
+								""
+							],
+							"query": [
+								{
+									"key": "group",
+									"value": "1"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}
