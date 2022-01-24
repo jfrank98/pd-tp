@@ -156,14 +156,14 @@ public class DatabaseController {
 
         try {
             PreparedStatement ps = conn.prepareStatement(
-                    "SELECT * FROM UserInGroup WHERE group_user_id = ? OR group_admin = ?",
+                    "SELECT * FROM UserInGroup WHERE group_user_id = ?",
                     ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY
             );
             ps.setInt(1, userID);
-            ps.setInt(2, userID);
 
             ResultSet userInGroups = ps.executeQuery();
             if (!userInGroups.next()) return Constants.NO_GROUPS(lang);
+            userInGroups.beforeFirst();
 
             PreparedStatement ps1 = conn.prepareStatement("SELECT * FROM `Group` WHERE group_id = ?");
 
@@ -200,7 +200,7 @@ public class DatabaseController {
         List<String> messageHistory = new ArrayList<>();
 
         try {
-            PreparedStatement ps3 = conn.prepareStatement("SELECT * FROM UserContact WHERE user_id = ? AND contact_id = ? AND accepted = true");
+            PreparedStatement ps3 = conn.prepareStatement("SELECT * FROM UserContact WHERE user_id = ? AND contact_id = ? AND accepted = true", ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
             ps3.setInt(1, userID);
             ps3.setInt(2, contactID);
 
@@ -208,6 +208,8 @@ public class DatabaseController {
 
             if (!contacts.next())
                 return Constants.NO_CONTACTS(lang);
+
+            contacts.beforeFirst();
 
             PreparedStatement ps = conn.prepareStatement("SELECT * FROM MessageRecipient WHERE recipient_id = ? AND sender_id = ?", ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
             ps.setInt(1, userID);
@@ -229,7 +231,7 @@ public class DatabaseController {
                             messageHistory.add(messages.getString(2));
                     }
                 }
-                allMessages.first();
+                allMessages.beforeFirst();
             }
         } catch (SQLException throwables) {
             throwables.printStackTrace();
@@ -260,13 +262,13 @@ public class DatabaseController {
         List<String> groupHistory = new ArrayList<>();
 
         try {
-            PreparedStatement ps3 = conn.prepareStatement("SELECT * FROM UserInGroup WHERE group_group_id = ? AND accepted = true AND group_user_id = ? ");
+            PreparedStatement ps3 = conn.prepareStatement("SELECT * FROM UserInGroup WHERE group_group_id = ? AND accepted = true AND group_user_id = ? ", ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
             ps3.setInt(1, group);
             ps3.setInt(2, userID);
 
             ResultSet groupState = ps3.executeQuery();
             if (!groupState.next()) return Constants.NOT_IN_GROUP(lang);
-
+            groupState.beforeFirst();
 
             PreparedStatement ps = conn.prepareStatement("SELECT * FROM Message WHERE group_id = ? AND NOT User_user_id = ?");
             ps.setInt(1, group);

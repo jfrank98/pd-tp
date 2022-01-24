@@ -22,7 +22,7 @@ public class SessionController {
 
         if (user == null) return Constants.NO_CREDENTIALS(lang);
 
-        try (Connection conn = DriverManager.getConnection("jdbc:mysql://localhost/pd_chat", "root", "rootpw")) {
+        try (Connection conn = DriverManager.getConnection("jdbc:mysql://localhost/pd_chat", "root", "root")) {
             PreparedStatement ps = conn.prepareStatement("SELECT * FROM User WHERE username = ? AND password = ?");
             ps.setString(1, user.getUsername());
             ps.setString(2, user.getPassword());

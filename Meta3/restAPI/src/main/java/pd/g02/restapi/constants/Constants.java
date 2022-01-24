@@ -42,7 +42,7 @@ public class Constants {
 
     static {
         try {
-            CONNECTION = DriverManager.getConnection("jdbc:mysql://localhost/pd_chat", "root", "rootpw");
+            CONNECTION = DriverManager.getConnection("jdbc:mysql://localhost/pd_chat", "root", "root");
         } catch (SQLException throwables) {
             throwables.printStackTrace();
         }

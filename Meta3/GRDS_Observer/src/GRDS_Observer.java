@@ -78,6 +78,7 @@ public class GRDS_Observer extends UnicastRemoteObject implements GRDS_ObserverI
 
     @Override
     public void serverRemoved(ServerData server) throws RemoteException {
+        System.out.println("\nServidor removido.");
         servers.remove(server);
     }
 
