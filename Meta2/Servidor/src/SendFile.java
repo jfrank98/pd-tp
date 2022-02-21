@@ -1,5 +1,5 @@
-import java.io.File;
 import java.io.*;
+import java.io.File;
 import java.net.Socket;
 
 public class SendFile implements Runnable{
@@ -15,10 +15,11 @@ public class SendFile implements Runnable{
     public void run() {
         File localDirectory;
         String CanonicalFilePath = null;
-        FileInputStream fileInputStream;
+        FileInputStream fileInputStream = null;
+        OutputStream out = null;
         byte []fileChunk = new byte[MAX_SIZE];
         int nbytes;
-        localDirectory = new File("./".trim());
+        localDirectory = new File("./DownloadsChat".trim());
 
         if(!localDirectory.exists()){
             System.out.println("A directoria " + localDirectory + " nao existe!");
@@ -43,29 +44,46 @@ public class SendFile implements Runnable{
                 System.out.println("A directoria de base nao corresponde a " + localDirectory.getCanonicalPath() + "!");
                 return;
             }
-
+            System.out.println(CanonicalFilePath);
             fileInputStream = new FileInputStream(CanonicalFilePath);
-            OutputStream out = serverSocket.getOutputStream();
+            out = serverSocket.getOutputStream();
+
+            out.write(CanonicalFilePath.length());
+            out.flush();
+
             do {
                 nbytes = fileInputStream.read(fileChunk);
 
                 if (nbytes > 0) {
                     out.write(fileChunk, 0, nbytes);
-                    out.flush();
+
                 }
                     /*try {
                         Thread.sleep(1);
                     } catch (InterruptedException ex) {}*/
             } while (nbytes > 0);
 
-
+            System.out.println("Ficheiro enviado com sucesso.");
         } catch (FileNotFoundException e) {
-            System.out.println("Ficheiro nao encontrado na diretoria local.");
+            e.printStackTrace();
         } catch (IOException e) {
             if(CanonicalFilePath == null){
                 System.out.println("Ocorreu a excepcao {" + e +"} ao obter o caminho canonico para o ficheiro local!");
             }else{
                 System.out.println("Ocorreu a excepcao {" + e +"} ao tentar criar o ficheiro " + CanonicalFilePath + "!");
+            }
+        } finally {
+            try {
+                if (out != null) {
+                    out.close();
+                }
+                if (fileInputStream != null)
+                    fileInputStream.close();
+                if (serverSocket != null) {
+                    serverSocket.close();
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
             }
         }
     }

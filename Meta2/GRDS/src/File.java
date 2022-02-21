@@ -1,5 +1,6 @@
 import java.io.Serializable;
 import java.net.InetAddress;
+import java.util.ArrayList;
 
 public class File implements Serializable {
     private String unique_name;
@@ -8,8 +9,13 @@ public class File implements Serializable {
     private String name;
     private InetAddress locationAddress;
     private int locationPort;
+    private ArrayList<ClientData> affectedClients = new ArrayList<>();
 
     public static final long serialVersionUID = 1L;
+
+    public ArrayList<ClientData> getAffectedClients() {
+        return affectedClients;
+    }
 
     public String getUniqueName() {
         return unique_name;
@@ -57,5 +63,12 @@ public class File implements Serializable {
 
     public void setLocationPort(int locationPort) {
         this.locationPort = locationPort;
+    }
+
+    public void setServer() {
+    }
+
+    public void addAffectedClients(ClientData clientData) {
+        affectedClients.add(clientData);
     }
 }
